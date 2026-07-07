@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "n8n": {
+      "type": "http",
+      "url": "${user_config.n8n_url}",
+      "headers": {
+        "Authorization": "Bearer ${user_config.n8n_token}"
+      }
+    }
+  }
+}

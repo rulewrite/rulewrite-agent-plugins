@@ -1,0 +1,20 @@
+{
+  "name": "n8n-mcp",
+  "description": "n8n MCP 서버 — self-hosted 인스턴스에 HTTP + Access Token으로 연결. 공식/기존 플러그인이 없어 마켓에 추가.",
+  "version": "1.0.0",
+  "userConfig": {
+    "n8n_url": {
+      "type": "string",
+      "title": "n8n MCP Server URL",
+      "description": "self-hosted n8n의 MCP 엔드포인트. https://<도메인>/mcp-server/http 형태. n8n Settings의 인스턴스 MCP 설정 페이지에서 확인.",
+      "required": true
+    },
+    "n8n_token": {
+      "type": "string",
+      "title": "n8n MCP Access Token",
+      "description": "n8n Settings의 MCP 설정에서 발급한 액세스 토큰.",
+      "sensitive": true,
+      "required": true
+    }
+  }
+}
