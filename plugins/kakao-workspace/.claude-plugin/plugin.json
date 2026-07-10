@@ -1,0 +1,21 @@
+{
+  "name": "kakao-workspace",
+  "description": "카카오 사내 Atlassian MCP 서버 — jira.daumkakao.com(지라)·wiki.daumkakao.com(컨플루언스)에 Personal Access Token(stdio)으로 연결.",
+  "version": "1.0.0",
+  "userConfig": {
+    "jira_token": {
+      "type": "string",
+      "title": "Jira Personal Access Token",
+      "description": "jira.daumkakao.com 로그인 > 아바타 > Profile > Personal Access Tokens > Create token 으로 발급.",
+      "sensitive": true,
+      "required": true
+    },
+    "confluence_token": {
+      "type": "string",
+      "title": "Confluence(Wiki) Personal Access Token",
+      "description": "wiki.daumkakao.com 로그인 > 아바타 > Profile > Personal Access Tokens > Create token 으로 발급.",
+      "sensitive": true,
+      "required": true
+    }
+  }
+}

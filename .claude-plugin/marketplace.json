@@ -59,6 +59,11 @@
       },
       "description": "AI 에이전트에 '가장 게으른 시니어 개발자' 원칙을 주입 — YAGNI, 표준 라이브러리 우선, 불필요한 추상화 억제로 최소한의 코드만 작성하게 유도",
       "category": "productivity"
+    },
+    {
+      "name": "kakao-workspace",
+      "source": "./plugins/kakao-workspace",
+      "description": "카카오 사내 Atlassian MCP 서버 — 지라·위키를 Personal Access Token(stdio)으로 연결."
     }
   ]
 }

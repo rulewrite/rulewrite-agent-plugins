@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "jira": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["mcp-atlassian", "--jira-url=https://jira.daumkakao.com"],
+      "env": { "JIRA_PERSONAL_TOKEN": "${user_config.jira_token}" }
+    },
+    "wiki": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["mcp-atlassian", "--confluence-url=https://wiki.daumkakao.com"],
+      "env": { "CONFLUENCE_PERSONAL_TOKEN": "${user_config.confluence_token}" }
+    }
+  }
+}
