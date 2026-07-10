@@ -1,4 +1,4 @@
-# rulewrite-claude-market
+# rulewrite-agent-plugins
 
 개인용 Claude Code 플러그인 마켓플레이스.
 
@@ -6,18 +6,18 @@
 
 - [CLI](https://code.claude.com/docs/en/plugin-marketplaces#plugin-marketplace-add)
   ```shell
-  claude plugin marketplace add rulewrite/rulewrite-claude-market
+  claude plugin marketplace add rulewrite/rulewrite-agent-plugins
   ```
 - [claude 세션](https://code.claude.com/docs/en/plugin-marketplaces#host-on-github-recommended)
   ```
-  /plugin marketplace add rulewrite/rulewrite-claude-market
+  /plugin marketplace add rulewrite/rulewrite-agent-plugins
   ```
 
 ### 호환되는 에이전트
 
 - [codex](https://developers.openai.com/codex/plugins/build#add-a-marketplace-from-the-cli) ([호환](https://developers.openai.com/codex/plugins/build#how-codex-uses-marketplaces))
   ```shell
-  codex plugin marketplace add rulewrite/rulewrite-claude-market
+  codex plugin marketplace add rulewrite/rulewrite-agent-plugins
   ```
 
 ### 미지원 에이전트
