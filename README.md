@@ -1,6 +1,6 @@
 # rulewrite-agent-plugins
 
-개인용 Claude Code 플러그인 마켓플레이스.
+AI 에이전트 플러그인 마켓플레이스.
 
 ## 마켓플레이스 추가
 
