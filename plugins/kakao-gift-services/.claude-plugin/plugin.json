@@ -1,5 +1,22 @@
 {
   "name": "kakao-gift-services",
-  "description": "카카오 선물하기 FE 도구 — 프로젝트 킥오프 플래닝과 일상 작업 워크플로우",
-  "version": "1.0.0"
+  "description": "카카오 선물하기 FE 도구 — 프로젝트 킥오프 플래닝, 일상 작업 워크플로우, 환경 접속 정보·테스트 계정",
+  "version": "1.1.0",
+  "userConfig": {
+    "dev_domain_office": {
+      "type": "string",
+      "title": "로컬 개발 도메인 (회사)",
+      "description": "회사 네트워크에서 이 장비로 연결되는 애조로(fedev) 도메인."
+    },
+    "dev_domain_home": {
+      "type": "string",
+      "title": "로컬 개발 도메인 (집)",
+      "description": "재택 네트워크에서 이 장비로 연결되는 애조로(fedev) 도메인."
+    },
+    "sandbox_account_id": {
+      "type": "string",
+      "title": "샌드박스 테스트 계정 ID",
+      "description": "샌드박스 카카오계정 로그인 ID. 비밀번호는 별도 관리(environments 스킬 참고)."
+    }
+  }
 }
