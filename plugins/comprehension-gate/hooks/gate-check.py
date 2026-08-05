@@ -29,10 +29,15 @@ CHAIN_REASON = (
     "이해 확인 시점과 커밋되는 내용이 어긋날 수 있어 차단됨. "
     "스테이징을 먼저 끝내고, 별도 명령으로 git commit 할 것."
 )
+UNKNOWN_OPTION_REASON = (
+    "comprehension-gate: 게이트가 해석하지 못하는 커밋 옵션이 있어 차단됨(스테이징 우회와는 무관). "
+    "git commit -m 형태로 재시도하거나, 이 옵션이 꼭 필요하면 사용자에게 게이트 생략을 확인받을 것."
+)
 
 SHELL_OPERATORS = {"&&", "||", "|", ";", "&", "(", ")"}
 GIT_GLOBAL_WITH_ARG = {"-c", "--exec-path", "--namespace"}
 INDEX_MUTATORS = {"add", "rm", "mv", "restore", "reset", "checkout", "stash", "apply", "merge", "cherry-pick", "revert", "rebase"}
+STAGING_BYPASS_FLAGS = {"-a", "-i", "-o", "-p", "--all", "--include", "--only", "--interactive", "--patch"}
 COMMIT_FLAGS_WITH_ARG = {"-m", "--message", "-F", "--file", "--author", "--date", "--trailer", "--cleanup"}
 COMMIT_SAFE_FLAGS = {
     "--amend", "--edit", "--no-edit", "--no-verify", "-n", "--verbose", "-v",
@@ -113,8 +118,23 @@ def classify_tokens(tokens):
                 i += 1 if "=" in token else 2
             elif bare in COMMIT_SAFE_FLAGS:
                 i += 1
-            else:
+            elif bare in STAGING_BYPASS_FLAGS:
                 return True, STAGING_BYPASS_REASON, None
+            elif not token.startswith("-") or token == "--":
+                return True, STAGING_BYPASS_REASON, None  # pathspec
+            elif re.fullmatch(r"-[mF].+", token):
+                i += 1  # -m"메시지" 같은 값 결합형
+            elif re.fullmatch(r"-[a-zA-Z]{2,}", token):
+                trailing_arg = token[-1] in "mF"
+                letters = set(token[1:-1] if trailing_arg else token[1:])
+                if letters & set("aiop"):
+                    return True, STAGING_BYPASS_REASON, None
+                if letters <= set("nvqsS"):
+                    i += 2 if trailing_arg else 1
+                else:
+                    return True, UNKNOWN_OPTION_REASON, None
+            else:
+                return True, UNKNOWN_OPTION_REASON, None
     if "commit" not in subcommands:
         return False, None, None
     if commit_count > 1:
