@@ -170,8 +170,9 @@ def main():
         if not os.path.isdir(cwd):
             return  # 실제 셸에서도 cd·-C가 실패해 커밋이 실행되지 않음
 
-    if run_git(["rev-parse", "--verify", "--quiet", "MERGE_HEAD"], cwd).returncode == 0:
-        return  # 머지 종결 커밋은 Claude가 만든 변경이 아니므로 범위 밖
+    for pending in ("MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD"):
+        if run_git(["rev-parse", "--verify", "--quiet", pending], cwd).returncode == 0:
+            return  # merge·cherry-pick·revert 종결 커밋은 Claude가 만든 변경이 아니므로 범위 밖
     if run_git(["diff", "--cached", "--quiet"], cwd).returncode == 0:
         return  # 빈 스테이징(메시지만 고치는 amend 등); 스테이징 우회 옵션은 위에서 차단됨
     tree = run_git(["write-tree"], cwd)
