@@ -1,0 +1,16 @@
+{
+  "description": "사용자 이해 확인(퀴즈 통과) 전 Claude의 git commit 차단",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/gate-check.py"
+          }
+        ]
+      }
+    ]
+  }
+}
