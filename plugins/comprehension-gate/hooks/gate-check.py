@@ -14,9 +14,10 @@ QUIZ_REASON = (
     "서브에이전트라면 커밋하지 말고 메인 에이전트에 커밋 단계를 넘길 것."
 )
 REPO_UNCLEAR_REASON = (
-    "comprehension-gate: cd 프리픽스나 -C·--git-dir·--work-tree가 붙은 커밋은 "
-    "게이트가 대상 저장소를 특정할 수 없어 차단됨. "
-    "저장소 루트를 작업 디렉터리로 두고 옵션 없는 git commit으로 재시도할 것."
+    "comprehension-gate: 커밋 대상 저장소를 특정할 수 없는 형태(복잡한 cd·-C 조합, "
+    "변수·와일드카드 경로, --git-dir, 복수 commit 등)라 차단됨. "
+    "단일 cd <경로> && git commit 또는 git -C <경로> commit, "
+    "혹은 저장소 루트에서 옵션 없는 git commit 형태로 재시도할 것."
 )
 STAGING_BYPASS_REASON = (
     "comprehension-gate: 스테이징을 거치지 않는 커밋(-a·--include·--only·pathspec 등)은 "
@@ -30,7 +31,6 @@ CHAIN_REASON = (
 )
 
 SHELL_OPERATORS = {"&&", "||", "|", ";", "&", "(", ")"}
-GIT_GLOBAL_DENY = {"-C", "--git-dir", "--work-tree"}
 GIT_GLOBAL_WITH_ARG = {"-c", "--exec-path", "--namespace"}
 INDEX_MUTATORS = {"add", "rm", "mv", "restore", "reset", "checkout", "stash", "apply", "merge", "cherry-pick", "revert", "rebase"}
 COMMIT_FLAGS_WITH_ARG = {"-m", "--message", "-F", "--file", "--author", "--date", "--trailer", "--cleanup"}
@@ -53,19 +53,38 @@ def emit_deny(reason):
 
 
 def classify_tokens(tokens):
-    """(커밋 감지 여부, deny 사유 또는 None)을 돌려준다. 사유 None인 감지는 마커 검증 대상."""
-    cd_present = "cd" in tokens
+    """(커밋 감지 여부, deny 사유 또는 None, 대상 디렉터리 또는 None)을 돌려준다.
+
+    사유 None인 감지는 마커 검증 대상이며, 대상 디렉터리는 cd 프리픽스·-C 옵션을
+    해석한 결과다. 워크트리 작업처럼 세션 cwd 밖 저장소로의 커밋을 지원한다.
+    """
+    cd_target = None
+    cd_unclear = False
+    if "cd" in tokens:
+        if tokens.count("cd") > 1 or tokens[0] != "cd" or len(tokens) < 3 or tokens[2] not in {"&&", ";"}:
+            cd_unclear = True
+        else:
+            cd_target = tokens[1]
     subcommands = []
+    commit_count = 0
+    target = None
     i = 0
     while i < len(tokens):
         if tokens[i] != "git":
             i += 1
             continue
         i += 1
+        c_target = None
         repo_unclear = False
         while i < len(tokens) and tokens[i].startswith("-"):
             bare = tokens[i].split("=", 1)[0]
-            if bare in GIT_GLOBAL_DENY:
+            if bare == "-C":
+                if c_target is not None:
+                    repo_unclear = True
+                elif i + 1 < len(tokens):
+                    c_target = tokens[i + 1]
+                i += 2
+            elif bare in {"--git-dir", "--work-tree"}:
                 repo_unclear = True
                 i += 1 if "=" in tokens[i] else 2
             elif bare in GIT_GLOBAL_WITH_ARG and "=" not in tokens[i]:
@@ -78,8 +97,12 @@ def classify_tokens(tokens):
         subcommands.append(subcommand)
         if subcommand != "commit":
             continue
-        if repo_unclear or cd_present:
-            return True, REPO_UNCLEAR_REASON
+        commit_count += 1
+        if repo_unclear or cd_unclear:
+            return True, REPO_UNCLEAR_REASON, None
+        target = os.path.join(cd_target or "", c_target or "") or None
+        if target and re.search(r"[$`*?\[]", target):
+            return True, REPO_UNCLEAR_REASON, None
         i += 1
         while i < len(tokens):
             token = tokens[i]
@@ -91,30 +114,35 @@ def classify_tokens(tokens):
             elif bare in COMMIT_SAFE_FLAGS:
                 i += 1
             else:
-                return True, STAGING_BYPASS_REASON
+                return True, STAGING_BYPASS_REASON, None
     if "commit" not in subcommands:
-        return False, None
+        return False, None, None
+    if commit_count > 1:
+        return True, REPO_UNCLEAR_REASON, None
     if INDEX_MUTATORS & set(subcommands):
-        return True, CHAIN_REASON
-    return True, None
+        return True, CHAIN_REASON, None
+    return True, None, target
 
 
 def classify_fallback(command):
-    """shlex가 실패한(인용부 불균형 등) 명령의 최선 노력 판정. 옵션은 commit과 같은 줄에 온다고 가정."""
+    """shlex가 실패한(인용부 불균형 등) 명령의 최선 노력 판정. 옵션은 commit과 같은 줄에 온다고 가정.
+
+    이 경로에선 cd·-C 경로 해석이 불가능하므로 보수적으로 차단한다.
+    """
     matched = re.search(r"\bgit\b[^\n;|&]*?\bcommit\b", command)
     if not matched:
-        return False, None
+        return False, None, None
     prefix = command[: matched.start()]
     if re.search(r"(^|[;&|\n])\s*cd\s", prefix):
-        return True, REPO_UNCLEAR_REASON
+        return True, REPO_UNCLEAR_REASON, None
     if re.search(r"\s(-C|--git-dir|--work-tree)[=\s]", matched.group(0)):
-        return True, REPO_UNCLEAR_REASON
+        return True, REPO_UNCLEAR_REASON, None
     rest_of_line = command[matched.end():].split("\n", 1)[0]
     if re.search(r"(^|\s)-[a-zA-Z]*a[a-zA-Z]*\b|--all\b|--include\b|--only\b|(^|\s)-o\b", rest_of_line):
-        return True, STAGING_BYPASS_REASON
+        return True, STAGING_BYPASS_REASON, None
     if re.search(r"\bgit\b[^\n;|&]*?\b(add|rm|mv|restore|reset|checkout|stash)\b", command):
-        return True, CHAIN_REASON
-    return True, None
+        return True, CHAIN_REASON, None
+    return True, None, None
 
 
 def run_git(args, cwd):
@@ -132,11 +160,15 @@ def main():
         tokens = shlex.split(normalized, posix=True)
     except ValueError:
         tokens = None
-    detected, reason = classify_tokens(tokens) if tokens is not None else classify_fallback(command)
+    detected, reason, target = classify_tokens(tokens) if tokens is not None else classify_fallback(command)
     if not detected:
         return
     if reason:
         emit_deny(reason)
+    if target:
+        cwd = os.path.normpath(os.path.join(cwd, os.path.expanduser(target)))
+        if not os.path.isdir(cwd):
+            return  # 실제 셸에서도 cd·-C가 실패해 커밋이 실행되지 않음
 
     if run_git(["rev-parse", "--verify", "--quiet", "MERGE_HEAD"], cwd).returncode == 0:
         return  # 머지 종결 커밋은 Claude가 만든 변경이 아니므로 범위 밖
