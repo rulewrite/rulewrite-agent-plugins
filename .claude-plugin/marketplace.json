@@ -47,6 +47,11 @@
       "name": "kakao-workspace",
       "source": "./plugins/kakao-workspace",
       "description": "카카오 사내 Atlassian MCP 서버 — 지라·위키를 Personal Access Token(stdio)으로 연결."
+    },
+    {
+      "name": "comprehension-gate",
+      "source": "./plugins/comprehension-gate",
+      "description": "Claude가 만든 변경을 이해했는지 확인(literate diff + 퀴즈)하기 전까지 커밋을 차단 — 인지적 부채 속도 조절기"
     }
   ]
 }
