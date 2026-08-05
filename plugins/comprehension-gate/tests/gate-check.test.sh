@@ -104,7 +104,16 @@ git_t merge --no-ff --no-commit side >/dev/null 2>&1
 assert_pass "머지 진행 중" "$(run_gate 'git commit -m "merge"' "$REPO")"
 git_t merge --abort
 
-# 13. record-pass.sh 라운드트립: 기록 → 게이트 통과
+# 13. cherry-pick·revert 진행 중 커밋은 범위 밖 (Git이 대신 만드는 커밋)
+rm -f "$REPO2/.git/comprehension-gate-pass"
+git -C "$REPO2" rev-parse HEAD >"$REPO2/.git/CHERRY_PICK_HEAD"
+assert_pass "cherry-pick 진행 중" "$(run_gate 'git commit -m "x"' "$REPO2")"
+rm "$REPO2/.git/CHERRY_PICK_HEAD"
+git -C "$REPO2" rev-parse HEAD >"$REPO2/.git/REVERT_HEAD"
+assert_pass "revert 진행 중" "$(run_gate 'git commit -m "x"' "$REPO2")"
+rm "$REPO2/.git/REVERT_HEAD"
+
+# 14. record-pass.sh 라운드트립: 기록 → 게이트 통과
 RECORD="$SCRIPT_DIR/../scripts/record-pass.sh"
 echo three >"$REPO/d.txt"
 git_t add d.txt
