@@ -73,9 +73,19 @@ assert_deny "-a 커밋" "$(run_gate 'git commit -am "x"' "$REPO")" "스테이징
 assert_deny "-all 커밋" "$(run_gate 'git commit --all -m "x"' "$REPO")" "스테이징을 거치지 않는"
 assert_deny "pathspec 커밋" "$(run_gate 'git commit -m "x" a.txt' "$REPO")" "스테이징을 거치지 않는"
 
-# 10. 대상 저장소를 특정 못 하는 형태는 차단
-assert_deny "cd 프리픽스" "$(run_gate 'cd /elsewhere && git commit -m "x"' "$REPO")" "특정할 수 없어"
-assert_deny "git -C" "$(run_gate 'git -C /elsewhere commit -m "x"' "$REPO")" "특정할 수 없어"
+# 10. cd 프리픽스·-C는 해석해서 그 경로의 저장소 기준으로 검사 (워크트리 워크플로우)
+REPO2="$WORK/repo2"
+git init -q "$REPO2"
+git -C "$REPO2" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+echo r2 >"$REPO2/z.txt"
+git -C "$REPO2" add z.txt
+assert_deny "cd 프리픽스, 마커 없음" "$(run_gate "cd $REPO2 && git commit -m \"x\"" "$WORK")" "이해 확인 전"
+git -C "$REPO2" write-tree >"$REPO2/.git/comprehension-gate-pass"
+assert_pass "cd 프리픽스, 마커 일치" "$(run_gate "cd $REPO2 && git commit -m \"x\"" "$WORK")"
+assert_pass "git -C, 마커 일치" "$(run_gate "git -C $REPO2 commit -m \"x\"" "$WORK")"
+assert_deny "복수 cd" "$(run_gate "cd $WORK && cd repo2 && git commit -m \"x\"" "$WORK")" "특정할 수 없는"
+assert_deny "변수 경로" "$(run_gate 'cd $TARGET && git commit -m "x"' "$WORK")" "특정할 수 없는"
+assert_pass "존재하지 않는 경로" "$(run_gate 'cd /no/such/dir && git commit -m "x"' "$WORK")"
 
 # 11. 빈 스테이징(메시지 amend 등)은 통과
 rm -f "$REPO/.git/comprehension-gate-pass"
