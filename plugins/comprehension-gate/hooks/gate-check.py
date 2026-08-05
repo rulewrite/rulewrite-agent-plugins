@@ -66,7 +66,9 @@ def classify_tokens(tokens):
     cd_target = None
     cd_unclear = False
     if "cd" in tokens:
-        if tokens.count("cd") > 1 or tokens[0] != "cd" or len(tokens) < 3 or tokens[2] not in {"&&", ";"}:
+        # 구분자는 &&만 허용: ;·개행은 cd가 실패해도 커밋이 원래 cwd에서 실행되어
+        # "경로 없음 = 커밋 안 됨" 가정이 깨진다
+        if tokens.count("cd") > 1 or tokens[0] != "cd" or len(tokens) < 3 or tokens[2] != "&&":
             cd_unclear = True
         else:
             cd_target = tokens[1]

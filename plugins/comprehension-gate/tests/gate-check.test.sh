@@ -87,7 +87,8 @@ assert_pass "cd 프리픽스, 마커 일치" "$(run_gate "cd $REPO2 && git commi
 assert_pass "git -C, 마커 일치" "$(run_gate "git -C $REPO2 commit -m \"x\"" "$WORK")"
 assert_deny "복수 cd" "$(run_gate "cd $WORK && cd repo2 && git commit -m \"x\"" "$WORK")" "특정할 수 없는"
 assert_deny "변수 경로" "$(run_gate 'cd $TARGET && git commit -m "x"' "$WORK")" "특정할 수 없는"
-assert_pass "존재하지 않는 경로" "$(run_gate 'cd /no/such/dir && git commit -m "x"' "$WORK")"
+assert_pass "존재하지 않는 경로(&&)" "$(run_gate 'cd /no/such/dir && git commit -m "x"' "$WORK")"
+assert_deny "세미콜론 구분 cd" "$(run_gate "cd $REPO2; git commit -m \"x\"" "$WORK")" "특정할 수 없는"
 
 # 11. 빈 스테이징(메시지 amend 등)은 통과
 rm -f "$REPO/.git/comprehension-gate-pass"
