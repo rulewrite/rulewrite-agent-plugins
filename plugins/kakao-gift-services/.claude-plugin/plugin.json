@@ -1,7 +1,7 @@
 {
   "name": "kakao-gift-services",
   "description": "카카오 선물하기 FE 도구 — 프로젝트 킥오프 플래닝, 일상 작업 워크플로우, 환경 접속 정보·테스트 계정",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "userConfig": {
     "dev_domain_office": {
       "type": "string",
