@@ -74,6 +74,10 @@ assert_deny "-all 커밋" "$(run_gate 'git commit --all -m "x"' "$REPO")" "스�
 assert_deny "pathspec 커밋" "$(run_gate 'git commit -m "x" a.txt' "$REPO")" "스테이징을 거치지 않는"
 assert_deny "--fixup 미해석 옵션" "$(run_gate 'git commit --fixup HEAD' "$REPO")" "해석하지 못하는"
 assert_pass "-m 결합형" "$(run_gate 'git commit -m"x"' "$REPO")"
+assert_pass "리다이렉션 후행" "$(run_gate 'git commit -m "x" 2>&1' "$REPO")"
+assert_pass "리다이렉션+파이프 후행" "$(run_gate 'git commit -m "x" 2>&1 | tail -5' "$REPO")"
+assert_pass "출력 리다이렉션" "$(run_gate 'git commit -m "x" >/tmp/out.log' "$REPO")"
+assert_deny "pathspec + 리다이렉션" "$(run_gate 'git commit -m "x" a.txt 2>&1' "$REPO")" "스테이징을 거치지 않는"
 
 # 10. cd 프리픽스·-C는 해석해서 그 경로의 저장소 기준으로 검사 (워크트리 워크플로우)
 REPO2="$WORK/repo2"

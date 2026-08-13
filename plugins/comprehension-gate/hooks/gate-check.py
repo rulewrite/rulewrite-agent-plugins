@@ -35,6 +35,8 @@ UNKNOWN_OPTION_REASON = (
 )
 
 SHELL_OPERATORS = {"&&", "||", "|", ";", "&", "(", ")"}
+# `2>&1`은 앞선 연산자 분리로 `2>`가 남고 `>file`은 붙은 채 한 토큰이라, 숫자 접두와 후행 대상을 모두 허용한다
+REDIRECTION = re.compile(r"^\d*(>>?|<<?)")
 GIT_GLOBAL_WITH_ARG = {"-c", "--exec-path", "--namespace"}
 INDEX_MUTATORS = {"add", "rm", "mv", "restore", "reset", "checkout", "stash", "apply", "merge", "cherry-pick", "revert", "rebase"}
 STAGING_BYPASS_FLAGS = {"-a", "-i", "-o", "-p", "--all", "--include", "--only", "--interactive", "--patch"}
@@ -113,7 +115,7 @@ def classify_tokens(tokens):
         i += 1
         while i < len(tokens):
             token = tokens[i]
-            if token in SHELL_OPERATORS:
+            if token in SHELL_OPERATORS or REDIRECTION.match(token):
                 break
             bare = token.split("=", 1)[0]
             if bare in COMMIT_FLAGS_WITH_ARG:
