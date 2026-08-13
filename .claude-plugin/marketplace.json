@@ -52,6 +52,11 @@
       "name": "comprehension-gate",
       "source": "./plugins/comprehension-gate",
       "description": "Claude가 만든 변경을 이해했는지 확인(literate diff + 퀴즈)하기 전까지 커밋을 차단 — 인지적 부채 속도 조절기"
+    },
+    {
+      "name": "workspace-cleanup",
+      "source": "./plugins/workspace-cleanup",
+      "description": "git 잔재 브랜치·워크트리·임시 파일·잔류 프로세스를 근거 확인과 승인을 거쳐 안전하게 정리"
     }
   ]
 }
