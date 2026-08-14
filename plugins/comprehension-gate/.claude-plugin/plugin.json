@@ -1,5 +1,5 @@
 {
   "name": "comprehension-gate",
   "description": "Claude가 만든 변경을 사용자가 이해(literate diff 설명 + 퀴즈 통과)하기 전까지 git commit을 차단하는 인지적 부채 속도 조절기",
-  "version": "1.0.0"
+  "version": "1.1.0"
 }
