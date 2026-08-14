@@ -1,6 +1,6 @@
 # comprehension-gate
 
-Claude가 만든 변경을 사용자가 이해했다고 증명(literate diff 설명 + 퀴즈 통과)하기 전까지 `git commit`을 차단하는 인지적 부채 속도 조절기. Geoffrey Litt의 [Understanding is the new bottleneck](https://www.geoffreylitt.com/2026/07/02/understanding-is-the-new-bottleneck.html)에서 착안.
+Claude가 만든 변경을 사용자가 이해했다고 증명(literate diff 설명 + 퀴즈 통과)하기 전까지 `git commit`을 차단하는 인지적 부채 속도 조절기. Geoffrey Litt의 [Understanding is the new bottleneck](https://www.geoffreylitt.com/2026/07/02/understanding-is-the-new-bottleneck.html)에서 착안했고, 설명 순서(배경→직관→코드)와 이해도 퀴즈 형식은 같은 저자의 [explain-diff 프롬프트](https://gist.github.com/geoffreylitt/a29df1b5f9865506e8952488eac3d524)를 따랐다. 그 글의 댓글에서 지적된 문제(보기 길이 편차, 정답 위치 편향)는 이 플러그인에서 정답 자리를 무작위로 뽑는 방식으로 보완했다.
 
 ## 동작
 
