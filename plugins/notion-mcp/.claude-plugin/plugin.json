@@ -1,7 +1,7 @@
 {
   "name": "notion-mcp",
   "description": "Notion MCP 서버 — Internal Integration Token 기반 stdio 연결. 공식 플러그인(mcp.notion.com OAuth)이 매일 재인증을 요구하는 문제를 우회.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "userConfig": {
     "notion_token": {
       "type": "string",
