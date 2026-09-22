@@ -1,5 +1,5 @@
 {
   "name": "workspace-cleanup",
   "description": "git 잔재 브랜치·워크트리·임시 파일·잔류 프로세스를 근거 확인과 승인을 거쳐 안전하게 정리",
-  "version": "0.1.0"
+  "version": "0.2.0"
 }
