@@ -65,6 +65,7 @@
         "url": "https://github.com/tt-a1i/archify.git",
         "path": "archify"
       },
+      "skills": "./.",
       "description": "아키텍처·워크플로우·시퀀스·데이터 흐름·상태 다이어그램을 단일 HTML 파일로 생성 — 다크/라이트 테마, 이미지·영상 내보내기, 머메이드 다이어그램 변환 지원",
       "category": "productivity"
     }
