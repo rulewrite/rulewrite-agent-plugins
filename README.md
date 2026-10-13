@@ -15,7 +15,7 @@ AI 에이전트 플러그인 마켓플레이스.
 
 ### 호환되는 에이전트
 
-- [codex](https://developers.openai.com/codex/plugins/build#add-a-marketplace-from-the-cli) ([호환](https://developers.openai.com/codex/plugins/build#how-codex-uses-marketplaces))
+- [codex](https://developers.openai.com/plugins/build/plugins#add-a-marketplace-from-the-cli) ([호환](https://developers.openai.com/plugins/build/plugins#how-local-marketplaces-work))
   ```shell
   codex plugin marketplace add rulewrite/rulewrite-agent-plugins
   ```
