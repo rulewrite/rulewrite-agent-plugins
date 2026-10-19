@@ -1,0 +1,6 @@
+{
+  "name": "n8n-mcp",
+  "description": "n8n MCP 서버 — self-hosted 인스턴스에 HTTP + Access Token으로 연결. 공식/기존 플러그인이 없어 마켓에 추가.",
+  "version": "1.0.1",
+  "mcpServers": {}
+}
