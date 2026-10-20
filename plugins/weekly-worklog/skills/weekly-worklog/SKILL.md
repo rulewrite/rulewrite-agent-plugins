@@ -9,10 +9,11 @@ description: PR/지라 URL이나 번호·키와 함께 "노션에 남겨줘", "�
 
 ## 기본 흐름
 
-1. `~/.claude/state/weekly-worklog/target.json` 로드 → 없으면 [첫 실행](#첫-실행).
+1. [대상 문서](#대상-문서-관리) `target.json` 로드 → 없으면 [첫 실행](#첫-실행).
 2. [작업 정보 확보](#작업-정보-확보).
-3. `notion-worklog-writer`에 위임 (입력 명세는 에이전트 정의 참조).
-4. 결과 보고서 수신.
+3. [기록 지침](../../agents/notion-worklog-writer.md)과 입력 정보를 서브에이전트에 넘겨 위임한다 (입력 명세는 지침 참조).
+   - Claude Code: 지침이 `notion-worklog-writer` 에이전트로 등록돼 있으니 그 에이전트에 위임한다.
+4. 기록 결과 확인.
 5. `format_hint` 갱신이 포함됐으면 `target.json`에 반영.
 6. 사용자에게 [짧게 보고](#결과-보고).
 
@@ -21,7 +22,7 @@ description: PR/지라 URL이나 번호·키와 함께 "노션에 남겨줘", "�
 기본은 작업 1건 = 로그 1건. PR URL/번호 또는 지라 URL/키를 받으면 그걸로. URL 없이 "방금 한 X 작업 써둬"처럼 자유 입력으로 설명해줘도 된다.
 
 - PR: `gh pr view <url> --json number,title,url,body,mergedAt,baseRefName,headRefName,commits`
-- 지라: Jira MCP의 `jira_get_issue`
+- 지라: 연결된 지라 도구의 이슈 조회 기능
 
 수집:
 - 제목, URL/키, 완료 시점 (PR `mergedAt`, 지라 resolution date)
@@ -32,7 +33,7 @@ description: PR/지라 URL이나 번호·키와 함께 "노션에 남겨줘", "�
 
 대상 노션 문서는 첫 실행 때 한 번 확정해 저장. 매 실행 검색은 토큰 낭비·오탐 위험.
 
-저장 경로: `~/.claude/state/weekly-worklog/target.json`
+저장 경로: `~/.local/state/weekly-worklog/target.json` (에이전트와 무관한 XDG 상태 폴더. `XDG_STATE_HOME`이 설정돼 있으면 그 아래).
 
 ```json
 {
