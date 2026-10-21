@@ -1,5 +1,5 @@
 {
   "name": "standardize-rules",
   "description": "자연어로 남긴 새 룰·지침을 표준 SOT(AGENTS.md)에 쌓고, 현재 에이전트의 표준 연결(예: Claude Code의 CLAUDE.md @import)까지 챙겨 표준 방식으로 생성·업데이트",
-  "version": "1.0.0"
+  "version": "1.0.1"
 }
