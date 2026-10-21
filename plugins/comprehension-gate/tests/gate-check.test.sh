@@ -121,7 +121,7 @@ assert_pass "revert 진행 중" "$(run_gate 'git commit -m "x"' "$REPO2")"
 rm "$REPO2/.git/REVERT_HEAD"
 
 # 14. record-pass.sh 라운드트립: 기록 → 게이트 통과
-RECORD="$SCRIPT_DIR/../scripts/record-pass.sh"
+RECORD="$SCRIPT_DIR/../skills/comprehension-gate/scripts/record-pass.sh"
 echo three >"$REPO/d.txt"
 git_t add d.txt
 assert_deny "기록 전 차단" "$(run_gate 'git commit -m "x"' "$REPO")" "comprehension-gate"

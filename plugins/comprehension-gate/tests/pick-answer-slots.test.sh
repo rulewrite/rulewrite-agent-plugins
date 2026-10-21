@@ -3,7 +3,7 @@
 set -u
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
-PICK="$SCRIPT_DIR/../scripts/pick-answer-slots.sh"
+PICK="$SCRIPT_DIR/../skills/comprehension-gate/scripts/pick-answer-slots.sh"
 PASS=0
 FAIL=0
 
