@@ -1,5 +1,5 @@
 {
   "name": "weekly-worklog",
   "description": "작업 하나가 끝날 때마다 PR·지라 정보를 노션 업무 로그에 기존 포맷 그대로 기록",
-  "version": "1.0.0"
+  "version": "1.0.1"
 }

@@ -1,5 +1,5 @@
 {
   "name": "idle-notify",
-  "description": "Claude가 사용자 응답을 기다리거나 작업을 끝낸 idle 상태가 되면 macOS 알림으로 환기 (Notification·Stop 이벤트, osascript 기반)",
-  "version": "1.0.0"
+  "description": "에이전트가 승인·입력을 기다리거나 작업을 끝내면 프로젝트 이름으로 macOS 알림 (osascript 기반)",
+  "version": "1.0.1"
 }

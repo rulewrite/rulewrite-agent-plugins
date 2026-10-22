@@ -27,7 +27,7 @@ A → B → C → D → E, 5단계. **각 단계 끝에 사용자 합의(체크�
 **입력**: Google Slides / Docs URL.
 - `docs.google.com/presentation/d/<ID>/...` 또는 `/document/d/<ID>/...` 에서 `<ID>` 추출
 - kko.to 같은 단축 URL은 해석 실패 가능성 있음 → 원 URL 요청
-- `mcp__claude_ai_Google_Drive__read_file_content` 로 읽기. 스코프 부족 시 재인증 안내
+- 연결된 Google Drive 도구로 읽기. 스코프 부족 시 재인증 안내
 
 **요약 포맷**:
 - 배경/현황 지표 → 개선 목표
@@ -44,7 +44,7 @@ A → B → C → D → E, 5단계. **각 단계 끝에 사용자 합의(체크�
 **목적**: 기획 요구가 실제 코드 어디에 걸리는지, 신규/재사용/리팩 경계 판단.
 
 **방법**:
-- Explore 에이전트로 병렬 탐색. 키워드는 기획서에서 추출 (예: 배너 이름, 컴포넌트 성격, API 명)
+- 코드 탐색용 서브에이전트로 병렬 탐색. 키워드는 기획서에서 추출 (예: 배너 이름, 컴포넌트 성격, API 명)
 - 결과를 **재사용 가능 / 리팩 필요 / 신규 구현** 3범주로 분류
 - 상위 레벨 파일 경로 + 핵심 함수/컴포넌트 이름 + 짧은 코멘트 형태로 정리
 
@@ -86,7 +86,7 @@ p17 [선물함] 잠재 VIP 문구 변경
 **상위 연결**:
 - 상위가 **Epic** → `epic_link`
 - 상위가 **Task/Story** → `parent`
-- 상위 이슈 타입은 `mcp__jira__jira_get_issue` 로 먼저 확인
+- 상위 이슈 타입은 연결된 지라의 이슈 조회 도구로 먼저 확인
 
 **Description**:
 - `h2` / `h3` 섹션. "포함 작업", "비고" 정도 구조
@@ -95,7 +95,7 @@ p17 [선물함] 잠재 VIP 문구 변경
 
 ### 4) 생성 순서
 1. 분해/공수 테이블을 사용자에게 먼저 제시
-2. 합의 후에만 `jira_create_issue` 병렬 호출
+2. 합의 후에만 연결된 지라의 이슈 생성 도구를 병렬 호출
 3. 생성 완료 후 합계(개발 공수) 보고
 
 ### 5) 이슈 수정/이관/삭제
@@ -147,10 +147,12 @@ p17 [선물함] 잠재 VIP 문구 변경
 
 ## 주요 도구
 
-- Google Drive: `mcp__claude_ai_Google_Drive__read_file_content` (fileId 기반)
-- 지라 조회: `mcp__jira__jira_get_issue`, `mcp__jira__jira_search`
-- 지라 생성/수정/삭제: `mcp__jira__jira_create_issue`, `mcp__jira__jira_update_issue`, `mcp__jira__jira_delete_issue`
-- 코드 탐색: `Agent(subagent_type=Explore)`
+현재 연결된 도구 목록에서 필요한 기능과 입력 형식을 확인해 사용한다.
+
+- Google Drive: Slides / Docs 내용 읽기
+- 지라: 이슈 조회·검색·생성·수정·삭제
+- 위키: 페이지 내용 읽기
+- 코드 탐색: 코드 탐색용 서브에이전트
 
 ## 선물하기 FE 전제
 

@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "jira": {
+      "command": "uvx",
+      "args": ["mcp-atlassian", "--jira-url=https://jira.daumkakao.com"],
+      "env_vars": ["JIRA_PERSONAL_TOKEN"]
+    },
+    "wiki": {
+      "command": "uvx",
+      "args": ["mcp-atlassian", "--confluence-url=https://wiki.daumkakao.com"],
+      "env_vars": ["CONFLUENCE_PERSONAL_TOKEN"]
+    }
+  }
+}

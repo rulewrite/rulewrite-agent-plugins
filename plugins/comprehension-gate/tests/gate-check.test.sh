@@ -121,12 +121,21 @@ assert_pass "revert 진행 중" "$(run_gate 'git commit -m "x"' "$REPO2")"
 rm "$REPO2/.git/REVERT_HEAD"
 
 # 14. record-pass.sh 라운드트립: 기록 → 게이트 통과
-RECORD="$SCRIPT_DIR/../scripts/record-pass.sh"
+RECORD="$SCRIPT_DIR/../skills/comprehension-gate/scripts/record-pass.sh"
 echo three >"$REPO/d.txt"
 git_t add d.txt
 assert_deny "기록 전 차단" "$(run_gate 'git commit -m "x"' "$REPO")" "comprehension-gate"
 (cd "$REPO" && "$RECORD" >/dev/null)
 assert_pass "기록 후 통과" "$(run_gate 'git commit -m "x"' "$REPO")"
+
+# 15. Codex는 명령의 실행 폴더를 hook에 넘기지 않아, 대상 저장소를 절대경로로 밝힌 커밋만 검사한다
+assert_deny "Codex 대상 미지정" "$(PLUGIN_ROOT=/p run_gate 'git commit -m "x"' "$REPO")" "절대경로"
+assert_deny "Codex 상대경로" "$(PLUGIN_ROOT=/p run_gate 'cd repo && git commit -m "x"' "$WORK")" "절대경로"
+assert_pass "Codex 절대경로" "$(PLUGIN_ROOT=/p run_gate "git -C $REPO commit -m x" "$WORK")"
+assert_pass "Codex cd 절대경로" "$(PLUGIN_ROOT=/p run_gate "cd $REPO && git commit -m x" "$WORK")"
+echo four >"$REPO/e.txt"
+git_t add e.txt
+assert_deny "Codex 절대경로도 퀴즈 검사" "$(PLUGIN_ROOT=/p run_gate "git -C $REPO commit -m x" "$WORK")" "이해 확인 전"
 
 echo "PASS=$PASS FAIL=$FAIL"
 [ "$FAIL" -eq 0 ]

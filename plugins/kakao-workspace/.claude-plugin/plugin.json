@@ -1,7 +1,7 @@
 {
   "name": "kakao-workspace",
   "description": "카카오 사내 Atlassian MCP 서버 — jira.daumkakao.com(지라)·wiki.daumkakao.com(컨플루언스)에 Personal Access Token(stdio)으로 연결.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "userConfig": {
     "jira_token": {
       "type": "string",
@@ -17,5 +17,6 @@
       "sensitive": true,
       "required": true
     }
-  }
+  },
+  "mcpServers": "./.mcp.claude.json"
 }

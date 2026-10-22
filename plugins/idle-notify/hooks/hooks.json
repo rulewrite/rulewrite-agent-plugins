@@ -1,12 +1,22 @@
 {
   "hooks": {
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -n \"$PLUGIN_ROOT\" ]; then \"${CLAUDE_PLUGIN_ROOT}/hooks/notify.sh\" '승인을 기다리고 있습니다' Glass; fi"
+          }
+        ]
+      }
+    ],
     "Notification": [
       {
         "matcher": "*",
         "hooks": [
           {
             "type": "command",
-            "command": "osascript -e 'display notification \"Claude가 입력을 기다리고 있습니다\" with title \"Claude Code\" sound name \"Glass\"'"
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/notify.sh\" '입력을 기다리고 있습니다' Glass"
           }
         ]
       }
@@ -16,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "osascript -e 'display notification \"작업이 완료되었습니다\" with title \"Claude Code\" sound name \"Hero\"'"
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/notify.sh\" '작업이 완료되었습니다' Hero"
           }
         ]
       }

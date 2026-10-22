@@ -17,7 +17,7 @@
     {
       "name": "idle-notify",
       "source": "./plugins/idle-notify",
-      "description": "Claude가 사용자 응답을 기다리거나 작업을 끝낸 idle 상태가 되면 macOS 알림으로 환기"
+      "description": "에이전트가 승인·입력을 기다리거나 작업을 끝내면 프로젝트 이름으로 macOS 알림"
     },
     {
       "name": "notion-mcp",
@@ -37,8 +37,8 @@
     {
       "name": "ponytail",
       "source": {
-        "source": "github",
-        "repo": "DietrichGebert/ponytail"
+        "source": "url",
+        "url": "https://github.com/DietrichGebert/ponytail.git"
       },
       "description": "AI 에이전트에 '가장 게으른 시니어 개발자' 원칙을 주입 — YAGNI, 표준 라이브러리 우선, 불필요한 추상화 억제로 최소한의 코드만 작성하게 유도",
       "category": "productivity"
@@ -65,6 +65,7 @@
         "url": "https://github.com/tt-a1i/archify.git",
         "path": "archify"
       },
+      "skills": "./.",
       "description": "아키텍처·워크플로우·시퀀스·데이터 흐름·상태 다이어그램을 단일 HTML 파일로 생성 — 다크/라이트 테마, 이미지·영상 내보내기, 머메이드 다이어그램 변환 지원",
       "category": "productivity"
     }
