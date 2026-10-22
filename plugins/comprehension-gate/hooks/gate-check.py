@@ -29,6 +29,11 @@ CHAIN_REASON = (
     "이해 확인 시점과 커밋되는 내용이 어긋날 수 있어 차단됨. "
     "스테이징을 먼저 끝내고, 별도 명령으로 git commit 할 것."
 )
+WORKDIR_UNKNOWN_REASON = (
+    "comprehension-gate: 이 에이전트는 명령의 실행 폴더를 hook에 알려주지 않아, "
+    "커밋 대상 저장소를 확인할 수 없어 차단됨. "
+    "git -C <저장소 절대경로> commit 형태로 재시도할 것."
+)
 UNKNOWN_OPTION_REASON = (
     "comprehension-gate: 게이트가 해석하지 못하는 커밋 옵션이 있어 차단됨(스테이징 우회와는 무관). "
     "git commit -m 형태로 재시도하거나, 이 옵션이 꼭 필요하면 사용자에게 게이트 생략을 확인받을 것."
@@ -189,6 +194,10 @@ def main():
         return
     if reason:
         emit_deny(reason)
+    # PLUGIN_ROOT는 Codex만 설정한다. Codex는 셸 도구의 실행 폴더를 hook 입력에 담지 않아,
+    # 세션 cwd로 검사하면 엉뚱한 저장소를 보거나 비저장소로 판단해 그냥 통과시킨다
+    if os.environ.get("PLUGIN_ROOT") and not (target and os.path.isabs(os.path.expanduser(target))):
+        emit_deny(WORKDIR_UNKNOWN_REASON)
     if target:
         cwd = os.path.normpath(os.path.join(cwd, os.path.expanduser(target)))
         if not os.path.isdir(cwd):
