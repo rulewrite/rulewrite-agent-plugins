@@ -15,6 +15,8 @@ type Action = (typeof ACTIONS)[number]
 const KINDS: readonly TodoKind[] = ['decision', 'task']
 const KIND_LABELS: Record<TodoKind, string> = { decision: '결정', task: '작업' }
 
+class Refusal extends Error {}
+
 function isAction(value: unknown): value is Action {
   return typeof value === 'string' && (ACTIONS as readonly string[]).includes(value)
 }
@@ -23,58 +25,67 @@ function isKind(value: unknown): value is TodoKind {
   return typeof value === 'string' && (KINDS as readonly string[]).includes(value)
 }
 
-function asTodos(value: unknown): Todo[] {
+function parseTodos(value: unknown): Todo[] {
   if (!Array.isArray(value)) {
-    return []
+    throw new Refusal('`set` needs `items`; to empty the list use `clear`.')
   }
 
-  const todos: Todo[] = []
+  if (value.length === 0) {
+    throw new Refusal('`set` got an empty `items`; to empty the list use `clear`.')
+  }
 
-  for (const one of value) {
+  return value.map((one, at): Todo => {
+    const position = at + 1
+
     if (typeof one !== 'object' || one === null) {
-      continue
+      throw new Refusal(`items[${position}] must be an object with \`text\` and \`kind\`.`)
     }
 
     const { text, kind } = one as Record<string, unknown>
+    const collapsed = typeof text === 'string' ? text.replace(/\s+/g, ' ').trim() : ''
 
-    if (typeof text !== 'string' || text.trim().length === 0 || !isKind(kind)) {
-      continue
+    if (collapsed.length === 0) {
+      throw new Refusal(`items[${position}] needs a non-empty \`text\`.`)
     }
 
-    todos.push({ text: text.trim(), kind, isDone: false })
-  }
+    if (!isKind(kind)) {
+      throw new Refusal(`items[${position}] has kind ${JSON.stringify(kind)}; use one of ${KINDS.join(', ')}.`)
+    }
 
-  return todos
+    return { text: collapsed, kind, isDone: false }
+  })
 }
 
-function asIndexes(value: unknown, length: number): Set<number> {
-  if (!Array.isArray(value)) {
-    return new Set()
+function parseIndexes(value: unknown, action: Action, length: number): Set<number> {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Refusal(`\`${action}\` needs \`indexes\`, 1-based numbers between 1 and ${length}.`)
   }
 
   return new Set(
-    value
-      .filter((one): one is number => Number.isInteger(one) && one >= 1 && one <= length)
-      .map(index => index - 1),
+    value.map((one): number => {
+      if (!Number.isInteger(one) || one < 1 || one > length) {
+        throw new Refusal(`\`${action}\` got index ${JSON.stringify(one)}; the list has items 1 to ${length}.`)
+      }
+
+      return one - 1
+    }),
   )
 }
 
-function apply(list: Todo[], action: Exclude<Action, 'list'>, input: Record<string, unknown>): Todo[] | string {
+function apply(list: Todo[], action: Exclude<Action, 'list'>, input: Record<string, unknown>): Todo[] {
   if (action === 'clear') {
     return []
   }
 
   if (action === 'set') {
-    return Array.isArray(input.items) ? asTodos(input.items) : '`set` needs `items`; to empty the list use `clear`.'
+    return parseTodos(input.items)
   }
 
-  const targets = asIndexes(input.indexes, list.length)
+  const targets = parseIndexes(input.indexes, action, list.length)
 
-  if (targets.size === 0) {
-    return `\`${action}\` needs \`indexes\` between 1 and ${list.length}.`
-  }
-
-  return list.map((item, index) => (targets.has(index) ? { ...item, isDone: action === 'check' } : item))
+  return list.map((item, index): Todo => {
+    return targets.has(index) ? { ...item, isDone: action === 'check' } : item
+  })
 }
 
 function line(item: Todo, index: number): string {
@@ -82,12 +93,14 @@ function line(item: Todo, index: number): string {
 }
 
 function describe(list: Todo[]): string {
-  const doneCount = list.filter(item => item.isDone).length
+  const doneCount = list.filter((item) => {
+    return item.isDone
+  }).length
 
   return [`pinned ${list.length} item(s), ${doneCount} checked`, ...list.map(line)].join('\n')
 }
 
-export const register: Register = on => {
+export const register: Register = (on) => {
   on('session.start', async ($, e, next) => {
     await $.tool.register({
       name: 'pin_todos',
@@ -102,7 +115,7 @@ export const register: Register = on => {
         '- When the user answers a decision, call `check` with its number (1-based). When you finish a task, `check` it. `uncheck` reopens one.',
         '- Call `clear` only when the user asks to drop the list. Never clear because every item is checked: closing the list is the user\'s choice.',
         '- When the user asks what is left, or after the context was compacted, call `list` and answer from it rather than from memory.',
-        '- Not for the options of an AskUserQuestion dialog.',
+        '- Not for the options of an AskUserQuestion dialog. Only the main conversation may call it: a subagent\'s call is refused.',
       ].join('\n'),
       inputSchema: {
         type: 'object',
@@ -144,32 +157,40 @@ export const register: Register = on => {
       return { deny: `pin_todos: unknown action ${JSON.stringify(action)}; use one of ${ACTIONS.join(', ')}.` }
     }
 
-    if (action === 'list') {
-      return { result: describe(await read($, items)) }
+    if (e.agentId !== undefined) {
+      return { deny: 'pin_todos: only the main conversation keeps the list; a subagent may not change it.' }
     }
 
-    let refusal: string | undefined
-    const list = await update($, items, current => {
-      const applied = apply(current, action, e)
+    const current = await read($, items)
 
-      if (typeof applied === 'string') {
-        refusal = applied
+    if (action === 'list') {
+      return { result: describe(current) }
+    }
 
-        return current
+    try {
+      // Validated once here so a refused call writes nothing, and again inside
+      // the updater because a retry may run it against a list another call changed.
+      apply(current, action, e)
+      const list = await update($, items, (latest) => {
+        return apply(latest, action, e)
+      })
+
+      return { result: describe(list) }
+    } catch (error) {
+      if (error instanceof Refusal) {
+        return { deny: `pin_todos: ${error.message}` }
       }
 
-      return applied
-    })
-
-    if (refusal !== undefined) {
-      return { deny: `pin_todos: ${refusal}` }
+      throw error
     }
+  }).catch(() => {
+    return { deny: 'pin_todos: the call failed inside the plugin and may or may not have applied; call `list` to see the list as it is.' }
+  })
 
-    return { result: describe(list) }
-  }).catch(() => ({ deny: 'pin_todos: the call failed inside the plugin; the list is unchanged.' }))
-
-  on('command.run', { command: 'todo-clear' }, async $ => {
-    await update($, items, () => [])
+  on('command.run', { command: 'todo-clear' }, async ($) => {
+    await update($, items, () => {
+      return []
+    })
 
     return { text: '고정된 TODO 목록을 닫았습니다.' }
   })
@@ -182,7 +203,9 @@ export const register: Register = on => {
     }
 
     const { Box, Button, Text } = $.ui.resolve(e)
-    const openCount = list.filter(item => !item.isDone).length
+    const openCount = list.filter((item) => {
+      return !item.isDone
+    }).length
 
     return (
       <Box flexDirection="column" borderStyle="round" borderColor="warning" paddingX={1}>
@@ -190,29 +213,36 @@ export const register: Register = on => {
           <Text weight="bold">
             📌 TODO {openCount}/{list.length} 남음
           </Text>
-          <Button key="close" hotkey="0" label="닫기" onPress={() => update($, items, () => [])} />
+          <Button
+            key="close"
+            hotkey="0"
+            label="닫기"
+            onPress={() => {
+              return update($, items, () => {
+                return []
+              })
+            }}
+          />
           <Text dimColor>(빈 프롬프트에서 0 · /todo-clear)</Text>
         </Box>
-        {list.map((item, index) => (
-          <Button
-            key={`item-${index + 1}`}
-            plain
-            dimColor={item.isDone}
-            onPress={() =>
-              update($, items, current =>
-                current.map((one, at) => (at === index ? { ...one, isDone: !one.isDone } : one)),
-              )
-            }
-          >
-            {item.isDone ? (
-              <Text color="success" strikethrough>
-                {line(item, index)}
-              </Text>
-            ) : (
-              <Text>{line(item, index)}</Text>
-            )}
-          </Button>
-        ))}
+        {list.map((item, index) => {
+          return (
+            <Button
+              key={`item-${index + 1}`}
+              plain
+              dimColor={item.isDone}
+              onPress={() => {
+                return update($, items, (current) => {
+                  return current.map((one, at): Todo => {
+                    return at === index ? { ...one, isDone: !one.isDone } : one
+                  })
+                })
+              }}
+            >
+              <Text {...(item.isDone ? { color: 'success', strikethrough: true } : {})}>{line(item, index)}</Text>
+            </Button>
+          )
+        })}
       </Box>
     )
   })
