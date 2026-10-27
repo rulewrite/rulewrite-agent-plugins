@@ -61,7 +61,7 @@
     {
       "name": "pinned-todos",
       "source": "./plugins/pinned-todos",
-      "description": "턴이 끝나도 남는 것(사용자가 내릴 결정, 다음 턴에 할 작업)을 입력창 위에 체크리스트로 고정 — 처리된 항목은 체크, 닫기는 0 키나 /todo-clear"
+      "description": "턴이 끝나도 남는 것(사용자가 내릴 결정, 다음 턴에 할 작업)을 입력창 위에 체크리스트로 고정 — 처리된 항목은 체크, 닫기는 0 키나 /todo-clear (Claude Code 전용 mod)"
     },
     {
       "name": "archify",
