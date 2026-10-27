@@ -1,0 +1,6 @@
+{
+  "name": "pinned-todos",
+  "version": "0.1.0",
+  "description": "턴이 끝나도 남는 것(사용자가 내릴 결정, 다음 턴에 할 작업)을 입력창 위에 체크리스트로 고정 — 스크롤로 사라지지 않게",
+  "types": "./types/index.d.ts"
+}
