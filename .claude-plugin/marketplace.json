@@ -73,6 +73,16 @@
       "skills": "./.",
       "description": "아키텍처·워크플로우·시퀀스·데이터 흐름·상태 다이어그램을 단일 HTML 파일로 생성 — 다크/라이트 테마, 이미지·영상 내보내기, 머메이드 다이어그램 변환 지원",
       "category": "productivity"
+    },
+    {
+      "name": "pstack",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/cursor/plugins.git",
+        "path": "harness/pstack/claude-code"
+      },
+      "description": "코드를 적게, 그러나 깊게 쓰게 하는 엔지니어링 워크플로우 모음 — 설계 전 이해(/how, /why), 설계안 경쟁(/arena), 검증 후 배포(poteto-mode). Cursor 제작, Claude Code 어댑터 동봉",
+      "category": "productivity"
     }
   ]
 }
