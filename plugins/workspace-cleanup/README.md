@@ -14,7 +14,7 @@ git 작업 공간의 잔재(머지 끝난 브랜치, 소멸한 워크트리, 임
 - `git worktree remove <경로|이름>`, `git worktree move <경로|이름> <새 위치>` (`-C`·`cd` 반영. 경로가 없는 인자는 git처럼 등록된 워크트리의 경로 접미로 찾는다)
 - `rm -r*/-R*/-d <경로>`, `rmdir <경로>`, `trash <경로>`
 - `mv <경로> <어딘가>`
-- `find <시작점> ... -delete`, `find <시작점> ... -exec rm|rmdir|trash` (시작점 자신도 지워지므로 시작점을 본다)
+- `find <시작점> ... -delete`, `find <시작점> ... -exec rm|rmdir|trash` (시작점 자신도 지워질 수 있으므로 시작점을 본다. `-name`·`-path`·`-regex`·`-mindepth`·`-type f` 같은 테스트가 있으면 시작점은 걸러지므로 통과)
 
 `if ...; then rm`, `sudo -u me rm`, `builtin cd` 처럼 예약어·래퍼 뒤에 와도 잡는다. 차단 사유에는 적중한 절대경로를 적고, `git worktree` 명령일 때만 세션을 닫은 뒤 메인 워크트리에서 실행할 인수인계 예시를 붙인다.
 

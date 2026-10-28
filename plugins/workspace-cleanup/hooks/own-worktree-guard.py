@@ -36,7 +36,7 @@ DYNAMIC = re.compile(r"[$`*?\[{]")
 PARENT_SEGMENT = re.compile(r"(^|/)\.\.(/|$)")
 SHELL_OPERATORS = {"&&", "||", "|", ";", "&", "(", ")"}
 REDIRECTION = re.compile(r"^\d*(>>?|<<?)")
-HEREDOC_MARKER = re.compile(r"<<-?\s*(['\"]?)(\w+)\1")
+HEREDOC_MARKER = re.compile(r"(?<!<)<<-?(?!<)\s*(['\"]?)(\w+)\1")  # `<<<`(here-string)은 heredoc이 아니다
 COMMAND_SUBSTITUTION = "$__CMDSUB__"
 GIT_GLOBAL_WITH_ARG = {"-c", "--exec-path", "--namespace", "--git-dir", "--work-tree"}
 
@@ -204,8 +204,15 @@ def rm_removes_directories(words):
     return False
 
 
+FIND_TESTS_EXCLUDING_START = {"-name", "-iname", "-path", "-ipath", "-regex", "-iregex", "-mindepth"}
+
+
 def find_start_points(words):
-    """`find <시작점들> ... -delete|-exec rm ...` 이면 시작점 목록, 아니면 빈 목록."""
+    """`find <시작점들> ... -delete|-exec rm ...` 이면 시작점 목록, 아니면 빈 목록.
+
+    시작점 자신은 모든 테스트를 통과할 때만 지워진다. 이름·경로 패턴이나 -mindepth, -type f 같은
+    테스트가 하나라도 있으면 시작점(디렉터리)은 걸러지므로 대상에서 뺀다.
+    """
     deletes = False
     for i, word in enumerate(words):
         if word == "-delete":
@@ -214,6 +221,11 @@ def find_start_points(words):
             deletes = True
     if not deletes:
         return []
+    for i, word in enumerate(words):
+        if word in FIND_TESTS_EXCLUDING_START:
+            return []
+        if word == "-type" and i + 1 < len(words) and words[i + 1] != "d":
+            return []
     starts = []
     for word in words[1:]:
         if word.startswith("-") or word in {"(", "!"}:

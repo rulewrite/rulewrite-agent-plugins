@@ -119,7 +119,6 @@ assert_deny "[4] builtin cd" "$(run_guard 'builtin cd .. && rm -rf wt' "$WT")" "
 assert_deny "[5] 서브셸 cd는 바깥에 안 샘" "$(run_guard '(cd /tmp); rm -rf ../wt' "$WT")" "$SELF"
 assert_deny "[5] 인자 없는 pushd 뒤 상대경로" "$(run_guard "pushd $MAIN; pushd; rm -rf ." "$WT")" "$UNRESOLVED"
 assert_deny "[6] find 시작점이 자기 루트" "$(run_guard "find $WT -exec rm -rf {} +" "$WT")" "$SELF"
-assert_deny "[6] find . -delete" "$(run_guard 'find . -name x -delete' "$WT")" "$SELF"
 DATA="$WORK/plugin-data"
 CLAUDE_PLUGIN_DATA="$DATA" run_guard_raw '{"session_id":"s1","tool_name":"Bash","tool_input":{"command":"ls"},"cwd":"'"$WT"'"}' >/dev/null
 assert_deny "[7] 첫 호출 cwd를 기억해 cd로 빠져나간 뒤 삭제도 차단" "$(CLAUDE_PLUGIN_DATA="$DATA" run_guard_raw '{"session_id":"s1","tool_name":"Bash","tool_input":{"command":"git worktree remove '"$WT"'"},"cwd":"'"$MAIN"'"}')" "$SELF"
@@ -129,6 +128,13 @@ RM_OUT=$(run_guard 'rm -rf ..' "$WT/projects/gift")
 if grep -q "worktree remove" <<<"$RM_OUT"; then FAIL=$((FAIL+1)); echo "FAIL: [9] rm 차단 사유에 worktree remove 예시가 붙음 → $RM_OUT"; else PASS=$((PASS+1)); fi
 WT_OUT=$(run_guard 'git worktree remove .' "$WT")
 if grep -q "worktree remove $(realpath "$WT")" <<<"$WT_OUT"; then PASS=$((PASS+1)); else FAIL=$((FAIL+1)); echo "FAIL: [9] worktree remove 차단 사유에 절대경로 예시 없음 → $WT_OUT"; fi
+
+
+# ── 머지 후 메모: here-string 오인, 필터 있는 find ──
+assert_deny "here-string 뒤 줄의 삭제 명령도 본다" "$(run_guard "read -r x <<<hello
+rm -rf $WT" "$WT")" "$SELF"
+assert_deny "find 시작점 삭제: 필터 없음" "$(run_guard 'find . -delete' "$WT")" "$SELF"
+assert_deny "find 시작점 삭제: -type d만" "$(run_guard 'find . -type d -empty -delete' "$WT")" "$SELF"
 
 # ── 통과 ──
 assert_pass "무관한 명령" "$(run_guard 'ls -la' "$WT")"
@@ -158,6 +164,10 @@ assert_pass "[3] heredoc 본문만 쓰는 인수인계 파일" "$(run_guard "cat
 git -C $MAIN worktree remove $WT
 EOF
 echo done" "$WT")"
+assert_pass "find 이름 필터가 있으면 시작점은 안 지워짐" "$(run_guard "find . -name '*.pyc' -delete" "$WT")"
+assert_pass "find -type f" "$(run_guard "find $WT -type f -exec rm -rf {} +" "$WT")"
+assert_pass "find -mindepth 1" "$(run_guard 'find . -mindepth 1 -delete' "$WT")"
+assert_pass "find -path 필터" "$(run_guard "find . -path './dist/*' -delete" "$WT")"
 
 echo "PASS=$PASS FAIL=$FAIL"
 [ "$FAIL" -eq 0 ]
