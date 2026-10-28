@@ -136,6 +136,18 @@ rm -rf $WT" "$WT")" "$SELF"
 assert_deny "find 시작점 삭제: 필터 없음" "$(run_guard 'find . -delete' "$WT")" "$SELF"
 assert_deny "find 시작점 삭제: -type d만" "$(run_guard 'find . -type d -empty -delete' "$WT")" "$SELF"
 
+
+# ── PR #14 리뷰: 패턴이 시작점(또는 그 아래 세션 디렉터리)에 맞거나 부정·선택이 섞이면 지워진다 ──
+assert_deny "find ! -name" "$(run_guard "find $WT ! -name '*.keep' -delete" "$WT")" "$SELF"
+assert_deny "find -not -name" "$(run_guard "find $WT -not -name '*.keep' -delete" "$WT")" "$SELF"
+assert_deny "find -name이 시작점 이름과 일치" "$(run_guard "find $WT -name wt -exec rm -rf {} +" "$WT")" "$SELF"
+assert_deny "find 상위 시작점 + -name이 세션 디렉터리 이름과 일치" "$(run_guard "find .. -name wt -exec rm -rf {} +" "$WT")" "$SELF"
+assert_deny "find -name '*'" "$(run_guard "find $WT -name '*' -delete" "$WT")" "$SELF"
+assert_deny "find -mindepth 0" "$(run_guard "find $WT -mindepth 0 -delete" "$WT")" "$SELF"
+assert_deny "find -path는 예외 아님" "$(run_guard "find $WT -path '*wt*' -delete" "$WT")" "$SELF"
+assert_deny "find 상위 시작점 + -mindepth 1은 세션 디렉터리를 지움" "$(run_guard 'find .. -mindepth 1 -delete' "$WT")" "$SELF"
+assert_deny "find 괄호 그룹 -o" "$(run_guard "find . \\( -name a -o -name b \\) -delete" "$WT")" "$SELF"
+
 # ── 통과 ──
 assert_pass "무관한 명령" "$(run_guard 'ls -la' "$WT")"
 assert_pass "인용부 문자열" "$(run_guard "echo \"rm -rf $WT\"" "$WT")"
@@ -167,7 +179,9 @@ echo done" "$WT")"
 assert_pass "find 이름 필터가 있으면 시작점은 안 지워짐" "$(run_guard "find . -name '*.pyc' -delete" "$WT")"
 assert_pass "find -type f" "$(run_guard "find $WT -type f -exec rm -rf {} +" "$WT")"
 assert_pass "find -mindepth 1" "$(run_guard 'find . -mindepth 1 -delete' "$WT")"
-assert_pass "find -path 필터" "$(run_guard "find . -path './dist/*' -delete" "$WT")"
+assert_pass "find 상위 시작점이라도 패턴이 안 맞으면 통과" "$(run_guard "find .. -name '*.pyc' -delete" "$WT")"
+assert_pass "find -maxdepth 0 + 안 맞는 패턴" "$(run_guard "find . -maxdepth 0 -name '*.pyc' -delete" "$WT")"
+assert_pass "find -iname 안 맞는 패턴" "$(run_guard "find . -iname '*.LOG' -delete" "$WT")"
 
 echo "PASS=$PASS FAIL=$FAIL"
 [ "$FAIL" -eq 0 ]

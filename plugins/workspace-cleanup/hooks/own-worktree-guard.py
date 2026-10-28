@@ -5,6 +5,7 @@
 세션 프로젝트 루트(CLAUDE_PROJECT_DIR), 그리고 각각의 모든 상위 디렉터리다. 이 중 하나를 지우거나
 옮기는 순간 작업 디렉터리가 사라져 세션이 끊긴다.
 """
+import fnmatch
 import json
 import os
 import re
@@ -73,6 +74,11 @@ class ProtectedDirs:
                     break
                 path = parent
 
+    def dirs_at_or_below(self, start):
+        """start 자신이거나 그 아래에 있는 보호 디렉터리들을 (절대경로, 기준) 목록으로 돌려준다."""
+        start = os.path.normcase(os.path.realpath(start))
+        return [(path, base) for path, base in self.names.items() if path == start or path.startswith(start.rstrip("/") + "/")]
+
     def covers(self, path):
         """path가 보호 디렉터리 중 하나면 그 기준 디렉터리를, 아니면 None을 돌려준다."""
         try:
@@ -135,6 +141,9 @@ def split_commands(tokens):
     commands = []
     current = []
     for token in tokens:
+        if token in {"(", ")"} and any(os.path.basename(w) == "find" for w in current):
+            current.append(token)  # 단순 명령 한가운데의 괄호는 find의 그룹 연산자다
+            continue
         if token in SHELL_OPERATORS:
             if current:
                 commands.append(current)
@@ -204,15 +213,11 @@ def rm_removes_directories(words):
     return False
 
 
-FIND_TESTS_EXCLUDING_START = {"-name", "-iname", "-path", "-ipath", "-regex", "-iregex", "-mindepth"}
+FIND_LOGIC_OPERATORS = {"!", "-not", "-o", "-or", "(", ")"}
 
 
 def find_start_points(words):
-    """`find <시작점들> ... -delete|-exec rm ...` 이면 시작점 목록, 아니면 빈 목록.
-
-    시작점 자신은 모든 테스트를 통과할 때만 지워진다. 이름·경로 패턴이나 -mindepth, -type f 같은
-    테스트가 하나라도 있으면 시작점(디렉터리)은 걸러지므로 대상에서 뺀다.
-    """
+    """`find <시작점들> ... -delete|-exec rm ...` 이면 시작점 목록, 아니면 빈 목록."""
     deletes = False
     for i, word in enumerate(words):
         if word == "-delete":
@@ -221,17 +226,46 @@ def find_start_points(words):
             deletes = True
     if not deletes:
         return []
-    for i, word in enumerate(words):
-        if word in FIND_TESTS_EXCLUDING_START:
-            return []
-        if word == "-type" and i + 1 < len(words) and words[i + 1] != "d":
-            return []
     starts = []
     for word in words[1:]:
         if word.startswith("-") or word in {"(", "!"}:
             break
         starts.append(word)
     return starts or ["."]
+
+
+def find_dir_at_risk(words, start, protected):
+    """find가 start 아래를 훑다가 지울 수 있는 보호 디렉터리 하나를 (절대경로, 기준)으로, 없으면 None.
+
+    디렉터리는 모든 테스트를 통과할 때만 지워진다. 평가할 수 있는 테스트(-name/-iname의 basename 패턴,
+    -mindepth/-maxdepth, 디렉터리가 아닌 -type)만 걸러내고, 부정·선택 연산이 섞이면 걸러낼 수 없다고 본다.
+    """
+    candidates = protected.dirs_at_or_below(start)
+    if not candidates:
+        return None
+    if FIND_LOGIC_OPERATORS & set(words):
+        return candidates[0]
+    start_real = os.path.normcase(os.path.realpath(start)).rstrip("/")
+    name_tests, min_depth, max_depth = [], 0, None
+    for i, word in enumerate(words[:-1]):
+        value = words[i + 1]
+        if word == "-type" and value != "d":
+            return None
+        if word in {"-name", "-iname"}:
+            name_tests.append((value, word == "-iname"))
+        if word == "-mindepth" and value.isdigit():
+            min_depth = int(value)
+        if word == "-maxdepth" and value.isdigit():
+            max_depth = int(value)
+    for path, base in candidates:
+        depth = 0 if path == start_real else path[len(start_real) + 1:].count("/") + 1
+        if depth < min_depth or (max_depth is not None and depth > max_depth):
+            continue
+        basename = os.path.basename(path)
+        if any(not fnmatch.fnmatchcase(basename.lower() if ignore_case else basename, pattern.lower() if ignore_case else pattern) for pattern, ignore_case in name_tests):
+            continue
+        return path, base
+    return None
 
 
 def destructive_targets(words):
@@ -351,6 +385,12 @@ def check_tokens(tokens, cwd, protected):
             for c_dir in c_dirs:
                 base_dir = resolve_dir(c_dir, base_dir)
             verdict = judge(token, base_dir, protected, verb)
+            if verb == "find" and verdict and verdict[0] == "self":
+                # 시작점이 보호 디렉터리(세션 디렉터리이거나 그 상위)여도, 테스트가 그 아래 보호 디렉터리를 전부 걸러내면 안전하다
+                at_risk = find_dir_at_risk(words[start:], verdict[1], protected)
+                if not at_risk:
+                    continue
+                verdict = ("self", at_risk[0], at_risk[1])
             if verdict and verdict[0] == "self":
                 example = WORKTREE_EXAMPLE.format(target=verdict[1]) if verb == "git worktree" else ""
                 emit_deny(SELF_REASON.format(token=token, target=verdict[1], base=verdict[2], example=example))
