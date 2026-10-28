@@ -64,6 +64,11 @@
       "description": "턴이 끝나도 남는 것(사용자가 내릴 결정, 다음 턴에 할 작업)을 입력창 위에 체크리스트로 고정 — 처리된 항목은 체크, 닫기는 0 키나 /todo-clear (Claude Code 전용 mod)"
     },
     {
+      "name": "career-interviewer",
+      "source": "./plugins/career-interviewer",
+      "description": "이력서·지원서·성과보고서처럼 내가 한 일을 상대의 틀로 옮기는 글을 인터뷰로 함께 쓴다 — 틀은 인터뷰어가 쥐고, 기억은 세션의 도구로 찾은 업무 흔적을 단서 삼아 되살린다"
+    },
+    {
       "name": "archify",
       "source": {
         "source": "git-subdir",
