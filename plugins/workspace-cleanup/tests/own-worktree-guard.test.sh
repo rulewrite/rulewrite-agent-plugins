@@ -148,6 +148,12 @@ assert_deny "find -path는 예외 아님" "$(run_guard "find $WT -path '*wt*' -d
 assert_deny "find 상위 시작점 + -mindepth 1은 세션 디렉터리를 지움" "$(run_guard 'find .. -mindepth 1 -delete' "$WT")" "$SELF"
 assert_deny "find 괄호 그룹 -o" "$(run_guard "find . \\( -name a -o -name b \\) -delete" "$WT")" "$SELF"
 
+
+# ── PR #14 재검토: 서브셸 닫는 괄호, 액션 뒤의 테스트 ──
+assert_deny "서브셸 마지막이 find여도 cd는 바깥에 안 샘" "$(run_guard "(cd /usr && find . -name '*.log' -delete); rm -rf ../wt" "$WT")" "$SELF"
+assert_deny "find 액션 뒤의 -name은 무효" "$(run_guard "find $WT -delete -name '*.pyc'" "$WT")" "$SELF"
+assert_deny "find -exec 뒤의 -name은 무효" "$(run_guard "find $WT -exec rm -rf {} + -name '*.pyc'" "$WT")" "$SELF"
+
 # ── 통과 ──
 assert_pass "무관한 명령" "$(run_guard 'ls -la' "$WT")"
 assert_pass "인용부 문자열" "$(run_guard "echo \"rm -rf $WT\"" "$WT")"
@@ -182,6 +188,7 @@ assert_pass "find -mindepth 1" "$(run_guard 'find . -mindepth 1 -delete' "$WT")"
 assert_pass "find 상위 시작점이라도 패턴이 안 맞으면 통과" "$(run_guard "find .. -name '*.pyc' -delete" "$WT")"
 assert_pass "find -maxdepth 0 + 안 맞는 패턴" "$(run_guard "find . -maxdepth 0 -name '*.pyc' -delete" "$WT")"
 assert_pass "find -iname 안 맞는 패턴" "$(run_guard "find . -iname '*.LOG' -delete" "$WT")"
+assert_pass "서브셸 안의 필터 있는 find" "$(run_guard "(find . -name '*.pyc' -delete)" "$WT")"
 
 echo "PASS=$PASS FAIL=$FAIL"
 [ "$FAIL" -eq 0 ]

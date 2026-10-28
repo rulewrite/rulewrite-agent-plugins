@@ -141,8 +141,12 @@ def split_commands(tokens):
     commands = []
     current = []
     for token in tokens:
-        if token in {"(", ")"} and any(os.path.basename(w) == "find" for w in current):
-            current.append(token)  # 단순 명령 한가운데의 괄호는 find의 그룹 연산자다
+        # 단순 명령 한가운데의 `(`는 find의 그룹 연산자다. `)`는 그 짝이 열려 있을 때만 find 것이고, 아니면 서브셸을 닫는다
+        if token == "(" and any(os.path.basename(w) == "find" for w in current):
+            current.append(token)
+            continue
+        if token == ")" and current.count("(") > current.count(")"):
+            current.append(token)
             continue
         if token in SHELL_OPERATORS:
             if current:
@@ -214,6 +218,7 @@ def rm_removes_directories(words):
 
 
 FIND_LOGIC_OPERATORS = {"!", "-not", "-o", "-or", "(", ")"}
+FIND_ACTIONS = {"-delete", "-exec", "-execdir", "-ok", "-okdir"}
 
 
 def find_start_points(words):
@@ -243,6 +248,8 @@ def find_dir_at_risk(words, start, protected):
     candidates = protected.dirs_at_or_below(start)
     if not candidates:
         return None
+    # find는 왼쪽부터 평가하므로 첫 액션 뒤의 테스트는 아무것도 걸러내지 못한다
+    words = words[: next((i for i, w in enumerate(words) if w in FIND_ACTIONS), len(words))]
     if FIND_LOGIC_OPERATORS & set(words):
         return candidates[0]
     start_real = os.path.normcase(os.path.realpath(start)).rstrip("/")
