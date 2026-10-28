@@ -119,7 +119,6 @@ assert_deny "[4] builtin cd" "$(run_guard 'builtin cd .. && rm -rf wt' "$WT")" "
 assert_deny "[5] 서브셸 cd는 바깥에 안 샘" "$(run_guard '(cd /tmp); rm -rf ../wt' "$WT")" "$SELF"
 assert_deny "[5] 인자 없는 pushd 뒤 상대경로" "$(run_guard "pushd $MAIN; pushd; rm -rf ." "$WT")" "$UNRESOLVED"
 assert_deny "[6] find 시작점이 자기 루트" "$(run_guard "find $WT -exec rm -rf {} +" "$WT")" "$SELF"
-assert_deny "[6] find . -delete" "$(run_guard 'find . -name x -delete' "$WT")" "$SELF"
 DATA="$WORK/plugin-data"
 CLAUDE_PLUGIN_DATA="$DATA" run_guard_raw '{"session_id":"s1","tool_name":"Bash","tool_input":{"command":"ls"},"cwd":"'"$WT"'"}' >/dev/null
 assert_deny "[7] 첫 호출 cwd를 기억해 cd로 빠져나간 뒤 삭제도 차단" "$(CLAUDE_PLUGIN_DATA="$DATA" run_guard_raw '{"session_id":"s1","tool_name":"Bash","tool_input":{"command":"git worktree remove '"$WT"'"},"cwd":"'"$MAIN"'"}')" "$SELF"
@@ -129,6 +128,36 @@ RM_OUT=$(run_guard 'rm -rf ..' "$WT/projects/gift")
 if grep -q "worktree remove" <<<"$RM_OUT"; then FAIL=$((FAIL+1)); echo "FAIL: [9] rm 차단 사유에 worktree remove 예시가 붙음 → $RM_OUT"; else PASS=$((PASS+1)); fi
 WT_OUT=$(run_guard 'git worktree remove .' "$WT")
 if grep -q "worktree remove $(realpath "$WT")" <<<"$WT_OUT"; then PASS=$((PASS+1)); else FAIL=$((FAIL+1)); echo "FAIL: [9] worktree remove 차단 사유에 절대경로 예시 없음 → $WT_OUT"; fi
+
+
+# ── 머지 후 메모: here-string 오인, 필터 있는 find ──
+assert_deny "here-string 뒤 줄의 삭제 명령도 본다" "$(run_guard "read -r x <<<hello
+rm -rf $WT" "$WT")" "$SELF"
+assert_deny "find 시작점 삭제: 필터 없음" "$(run_guard 'find . -delete' "$WT")" "$SELF"
+assert_deny "find 시작점 삭제: -type d만" "$(run_guard 'find . -type d -empty -delete' "$WT")" "$SELF"
+
+
+# ── PR #14 리뷰: 패턴이 시작점(또는 그 아래 세션 디렉터리)에 맞거나 부정·선택이 섞이면 지워진다 ──
+assert_deny "find ! -name" "$(run_guard "find $WT ! -name '*.keep' -delete" "$WT")" "$SELF"
+assert_deny "find -not -name" "$(run_guard "find $WT -not -name '*.keep' -delete" "$WT")" "$SELF"
+assert_deny "find -name이 시작점 이름과 일치" "$(run_guard "find $WT -name wt -exec rm -rf {} +" "$WT")" "$SELF"
+assert_deny "find 상위 시작점 + -name이 세션 디렉터리 이름과 일치" "$(run_guard "find .. -name wt -exec rm -rf {} +" "$WT")" "$SELF"
+assert_deny "find -name '*'" "$(run_guard "find $WT -name '*' -delete" "$WT")" "$SELF"
+assert_deny "find -mindepth 0" "$(run_guard "find $WT -mindepth 0 -delete" "$WT")" "$SELF"
+assert_deny "find -path는 예외 아님" "$(run_guard "find $WT -path '*wt*' -delete" "$WT")" "$SELF"
+assert_deny "find 상위 시작점 + -mindepth 1은 세션 디렉터리를 지움" "$(run_guard 'find .. -mindepth 1 -delete' "$WT")" "$SELF"
+assert_deny "find 괄호 그룹 -o" "$(run_guard "find . \\( -name a -o -name b \\) -delete" "$WT")" "$SELF"
+
+
+# ── PR #14 재검토: 서브셸 닫는 괄호, 액션 뒤의 테스트 ──
+assert_deny "서브셸 마지막이 find여도 cd는 바깥에 안 샘" "$(run_guard "(cd /usr && find . -name '*.log' -delete); rm -rf ../wt" "$WT")" "$SELF"
+assert_deny "find 액션 뒤의 -name은 무효" "$(run_guard "find $WT -delete -name '*.pyc'" "$WT")" "$SELF"
+assert_deny "find -exec 뒤의 -name은 무효" "$(run_guard "find $WT -exec rm -rf {} + -name '*.pyc'" "$WT")" "$SELF"
+
+
+# ── PR #14 3차: 액션 뒤의 -o 가지는 왼쪽 테스트와 무관하게 지운다 ──
+assert_deny "find 액션 뒤 -o 가지의 -exec rm" "$(run_guard "find $WT -name '*.pyc' -exec rm {} + -o -type d -exec rm -rf {} +" "$WT")" "$SELF"
+assert_deny "find 액션 뒤 -o -delete" "$(run_guard "find $WT -name '*.pyc' -delete -o -delete" "$WT")" "$SELF"
 
 # ── 통과 ──
 assert_pass "무관한 명령" "$(run_guard 'ls -la' "$WT")"
@@ -158,6 +187,13 @@ assert_pass "[3] heredoc 본문만 쓰는 인수인계 파일" "$(run_guard "cat
 git -C $MAIN worktree remove $WT
 EOF
 echo done" "$WT")"
+assert_pass "find 이름 필터가 있으면 시작점은 안 지워짐" "$(run_guard "find . -name '*.pyc' -delete" "$WT")"
+assert_pass "find -type f" "$(run_guard "find $WT -type f -exec rm -rf {} +" "$WT")"
+assert_pass "find -mindepth 1" "$(run_guard 'find . -mindepth 1 -delete' "$WT")"
+assert_pass "find 상위 시작점이라도 패턴이 안 맞으면 통과" "$(run_guard "find .. -name '*.pyc' -delete" "$WT")"
+assert_pass "find -maxdepth 0 + 안 맞는 패턴" "$(run_guard "find . -maxdepth 0 -name '*.pyc' -delete" "$WT")"
+assert_pass "find -iname 안 맞는 패턴" "$(run_guard "find . -iname '*.LOG' -delete" "$WT")"
+assert_pass "서브셸 안의 필터 있는 find" "$(run_guard "(find . -name '*.pyc' -delete)" "$WT")"
 
 echo "PASS=$PASS FAIL=$FAIL"
 [ "$FAIL" -eq 0 ]
