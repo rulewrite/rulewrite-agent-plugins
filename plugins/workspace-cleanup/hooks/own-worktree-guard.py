@@ -248,10 +248,11 @@ def find_dir_at_risk(words, start, protected):
     candidates = protected.dirs_at_or_below(start)
     if not candidates:
         return None
-    # find는 왼쪽부터 평가하므로 첫 액션 뒤의 테스트는 아무것도 걸러내지 못한다
-    words = words[: next((i for i, w in enumerate(words) if w in FIND_ACTIONS), len(words))]
+    # 부정·선택·괄호는 식 어디에 있든 걸러낸다는 보장을 깨뜨린다 (-o 오른쪽 가지는 왼쪽 테스트와 무관하게 평가된다)
     if FIND_LOGIC_OPERATORS & set(words):
         return candidates[0]
+    # find는 왼쪽부터 평가하므로 첫 액션 뒤의 테스트는 아무것도 걸러내지 못한다
+    words = words[: next((i for i, w in enumerate(words) if w in FIND_ACTIONS), len(words))]
     start_real = os.path.normcase(os.path.realpath(start)).rstrip("/")
     name_tests, min_depth, max_depth = [], 0, None
     for i, word in enumerate(words[:-1]):

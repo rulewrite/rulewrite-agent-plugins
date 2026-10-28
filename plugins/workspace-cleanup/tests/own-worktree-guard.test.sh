@@ -154,6 +154,11 @@ assert_deny "서브셸 마지막이 find여도 cd는 바깥에 안 샘" "$(run_g
 assert_deny "find 액션 뒤의 -name은 무효" "$(run_guard "find $WT -delete -name '*.pyc'" "$WT")" "$SELF"
 assert_deny "find -exec 뒤의 -name은 무효" "$(run_guard "find $WT -exec rm -rf {} + -name '*.pyc'" "$WT")" "$SELF"
 
+
+# ── PR #14 3차: 액션 뒤의 -o 가지는 왼쪽 테스트와 무관하게 지운다 ──
+assert_deny "find 액션 뒤 -o 가지의 -exec rm" "$(run_guard "find $WT -name '*.pyc' -exec rm {} + -o -type d -exec rm -rf {} +" "$WT")" "$SELF"
+assert_deny "find 액션 뒤 -o -delete" "$(run_guard "find $WT -name '*.pyc' -delete -o -delete" "$WT")" "$SELF"
+
 # ── 통과 ──
 assert_pass "무관한 명령" "$(run_guard 'ls -la' "$WT")"
 assert_pass "인용부 문자열" "$(run_guard "echo \"rm -rf $WT\"" "$WT")"
