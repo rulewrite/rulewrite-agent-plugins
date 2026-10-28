@@ -1,0 +1,17 @@
+{
+  "description": "세션이 서 있는 디렉터리(와 그 상위)를 지우거나 옮기는 Bash 명령 차단",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/own-worktree-guard.py\"",
+            "onFailure": "block"
+          }
+        ]
+      }
+    ]
+  }
+}
