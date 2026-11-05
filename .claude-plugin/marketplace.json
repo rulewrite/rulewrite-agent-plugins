@@ -88,6 +88,16 @@
       },
       "description": "코드를 적게, 그러나 깊게 쓰게 하는 엔지니어링 워크플로우 모음 — 설계 전 이해(/how, /why), 설계안 경쟁(/arena), 검증 후 배포(poteto-mode). Cursor 제작, Claude Code 어댑터 동봉",
       "category": "productivity"
+    },
+    {
+      "name": "fluent-korean",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/snflkd/fluent-korean.git",
+        "path": "plugins/fluent-korean"
+      },
+      "description": "Claude Code가 조사·어미가 빠진 기계 한국어 대신 명확하고 자연스러운 한국어로 답하게 하는 output-style — 코딩 지침을 유지하는 판과 뺀 판 두 가지",
+      "category": "productivity"
     }
   ]
 }
