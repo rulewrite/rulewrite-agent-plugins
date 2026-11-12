@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { Register } from 'claude-code'
+import type { CoreEngineInterface, Register } from 'claude-code'
 
 import type { Todo, TodoKind } from '../types'
 
@@ -23,6 +23,27 @@ function isAction(value: unknown): value is Action {
 
 function isKind(value: unknown): value is TodoKind {
   return typeof value === 'string' && (KINDS as readonly string[]).includes(value)
+}
+
+function isTodo(value: unknown): value is Todo {
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
+
+  const { text, kind, isDone } = value as Record<string, unknown>
+
+  return typeof text === 'string' && text.length > 0 && isKind(kind) && typeof isDone === 'boolean'
+}
+
+// The store is a JSON file that outlives this code, so anything unexpected there reads as no entry.
+function parseSaved(value: unknown): { savedAt: number; todos: Todo[] } | undefined {
+  if (typeof value !== 'object' || value === null) {
+    return undefined
+  }
+
+  const { savedAt, todos } = value as Record<string, unknown>
+
+  return typeof savedAt === 'number' && Array.isArray(todos) && todos.every(isTodo) ? { savedAt, todos } : undefined
 }
 
 function parseTodos(value: unknown): Todo[] {
@@ -100,6 +121,37 @@ function describe(list: Todo[]): string {
   return [`pinned ${list.length} item(s), ${doneCount} checked`, ...list.map(line)].join('\n')
 }
 
+// Every writer goes through here: a write made from a press handler does not reach this plugin's own
+// `state.set` hook, so the saved copy cannot be tied to the state itself.
+async function change($: Pick<CoreEngineInterface, 'state' | 'store' | 'session' | 'clock'>, edit: (latest: Todo[]) => Todo[]): Promise<Todo[]> {
+  const list = await update($, items, edit)
+  const sessionId = await $.session.id()
+
+  await (list.length === 0 ? $.store.delete(sessionId) : $.store.set(sessionId, { savedAt: await $.clock.now(), todos: list }))
+
+  return list
+}
+
+// Past cleanupPeriodDays the session's transcript is deleted, so it can no longer be resumed to read its list.
+async function forgetExpired($: Pick<CoreEngineInterface, 'store' | 'clock' | 'settings'>, currentSessionId: string): Promise<void> {
+  const days = await $.settings.read({ key: 'cleanupPeriodDays' })
+  const keepFor = (typeof days === 'number' && days >= 0 ? days : 30) * 24 * 60 * 60 * 1000
+  const now = await $.clock.now()
+
+  for (const key of await $.store.keys()) {
+    if (key === currentSessionId) {
+      continue
+    }
+
+    // An entry this code cannot read may be a newer version's, so it is left alone.
+    const saved = parseSaved(await $.store.get(key))
+
+    if (saved !== undefined && now - saved.savedAt > keepFor) {
+      await $.store.delete(key)
+    }
+  }
+}
+
 export const register: Register = (on) => {
   on('session.start', async ($, e, next) => {
     await $.tool.register({
@@ -147,6 +199,19 @@ export const register: Register = (on) => {
       description: '입력창 위에 고정된 TODO 목록을 닫습니다',
     })
 
+    const sessionId = await $.session.id()
+    const saved = parseSaved(await $.store.get(sessionId))
+
+    if (saved !== undefined) {
+      // A hot reload also runs session.start; the live list wins over the saved one.
+      // Writing it back renews savedAt, so a list that is opened often never expires.
+      await change($, (latest) => {
+        return latest.length === 0 ? saved.todos : latest
+      })
+    }
+
+    await forgetExpired($, sessionId)
+
     return next(e)
   })
 
@@ -171,7 +236,7 @@ export const register: Register = (on) => {
       // Validated once here so a refused call writes nothing, and again inside
       // the updater because a retry may run it against a list another call changed.
       apply(current, action, e)
-      const list = await update($, items, (latest) => {
+      const list = await change($, (latest) => {
         return apply(latest, action, e)
       })
 
@@ -188,7 +253,7 @@ export const register: Register = (on) => {
   })
 
   on('command.run', { command: 'todo-clear' }, async ($) => {
-    await update($, items, () => {
+    await change($, () => {
       return []
     })
 
@@ -218,7 +283,7 @@ export const register: Register = (on) => {
             hotkey="0"
             label="닫기"
             onPress={() => {
-              return update($, items, () => {
+              return change($, () => {
                 return []
               })
             }}
@@ -232,7 +297,7 @@ export const register: Register = (on) => {
               plain
               dimColor={item.isDone}
               onPress={() => {
-                return update($, items, (current) => {
+                return change($, (current) => {
                   return current.map((one, at): Todo => {
                     return at === index ? { ...one, isDone: !one.isDone } : one
                   })

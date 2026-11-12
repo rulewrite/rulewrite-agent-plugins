@@ -9,6 +9,7 @@ const BAND = {
   component: 'AbovePrompt',
   props: {
     hasSurvey: false,
+    isCollapsed: false,
     isWorking: false,
     maxRows: 12,
     bodyColumns: 80,
@@ -22,9 +23,45 @@ const TODOS = [
   { text: '마켓플레이스 항목 수정', kind: 'task' },
 ]
 
+const NOW = Date.UTC(2026, 10, 12)
+const DAY = 24 * 60 * 60 * 1000
+
 const PINNED = 'pinned 2 item(s), 0 checked\n☐ 1. [결정] 브랜치 이름은?\n☐ 2. [작업] 마켓플레이스 항목 수정'
 
-async function start($: Parameters<TestBody>[0], on: Parameters<TestBody>[1]) {
+async function start(
+  $: Parameters<TestBody>[0],
+  on: Parameters<TestBody>[1],
+  {
+    sessionId = 'session-a',
+    stored = new Map(),
+    settings = {},
+  }: { sessionId?: string; stored?: Map<string, unknown>; settings?: Record<string, unknown> } = {},
+) {
+  on('clock.now', () => {
+    return { value: NOW }
+  })
+  on('settings.read', () => {
+    return { value: settings }
+  })
+  on('store.keys', () => {
+    return { value: [...stored.keys()] }
+  })
+  on('store.get', (_, e) => {
+    return { value: stored.get(e.key) }
+  })
+  on('store.set', (_, e) => {
+    stored.set(e.key, e.value)
+
+    return { value: undefined }
+  })
+  on('store.delete', (_, e) => {
+    stored.delete(e.key)
+
+    return { value: undefined }
+  })
+  on('session.id', () => {
+    return { value: sessionId }
+  })
   on('tool.register', () => {
     return { value: { tool: TOOL } }
   })
@@ -207,4 +244,86 @@ test('the band yields while a survey is up or the list is empty', async ($, on) 
   const survey = await $.ui.mount({ ...BAND, surface: 'terminal', props: { ...BAND.props, hasSurvey: true } })
   expect((await survey.find({ type: 'Text' }))?.text).toBe('engine')
   await survey.unmount()
+})
+
+test('a reopened session gets back the list it left, check marks included', async ($, on) => {
+  const saved = [
+    { text: '브랜치 이름은?', kind: 'decision', isDone: false },
+    { text: '마켓플레이스 항목 수정', kind: 'task', isDone: true },
+  ]
+  await start($, on, {
+    stored: new Map([
+      ['session-a', { savedAt: NOW - DAY, todos: saved }],
+      ['session-b', { savedAt: NOW - DAY, todos: [saved[0]] }],
+    ]),
+  })
+
+  const listed = await $.tool.call({ tool: TOOL, action: 'list' })
+  expect(listed.result).toBe('pinned 2 item(s), 1 checked\n☐ 1. [결정] 브랜치 이름은?\n☑ 2. [작업] 마켓플레이스 항목 수정')
+})
+
+test('another session starts with an empty list', async ($, on) => {
+  await start($, on, { sessionId: 'session-c', stored: new Map([['session-a', { savedAt: NOW, todos: [{ text: 'A', kind: 'task', isDone: false }] }]]) })
+
+  const listed = await $.tool.call({ tool: TOOL, action: 'list' })
+  expect(listed.result).toBe('pinned 0 item(s), 0 checked')
+})
+
+test('a saved list in a shape this code does not know is ignored', async ($, on) => {
+  await start($, on, { stored: new Map([['session-a', [{ text: '옛 항목', kind: 'task', isDone: false }]]]) })
+
+  const listed = await $.tool.call({ tool: TOOL, action: 'list' })
+  expect(listed.result).toBe('pinned 0 item(s), 0 checked')
+})
+
+test('every change is saved under the session, and closing the list removes the saved copy', async ($, on) => {
+  const saved = new Map<string, unknown>()
+  await start($, on, { stored: saved })
+
+  await $.tool.call({ tool: TOOL, action: 'set', items: TODOS })
+  await $.tool.call({ tool: TOOL, action: 'check', indexes: [1] })
+  expect(saved.get('session-a')).toEqual({
+    savedAt: NOW,
+    todos: [
+      { text: '브랜치 이름은?', kind: 'decision', isDone: true },
+      { text: '마켓플레이스 항목 수정', kind: 'task', isDone: false },
+    ],
+  })
+
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  await ui.press({ key: 'item-2' })
+  expect(saved.get('session-a')).toEqual({
+    savedAt: NOW,
+    todos: [
+      { text: '브랜치 이름은?', kind: 'decision', isDone: true },
+      { text: '마켓플레이스 항목 수정', kind: 'task', isDone: true },
+    ],
+  })
+
+  await ui.press({ key: 'close' })
+  await ui.unmount()
+  expect(saved.has('session-a')).toBe(false)
+})
+
+test('lists of sessions past cleanupPeriodDays are forgotten, while the reopened one is kept and renewed', async ($, on) => {
+  const todos = [{ text: 'A', kind: 'task', isDone: false }]
+  const unknown = { shape: 'from a newer version' }
+  const stored = new Map<string, unknown>([
+    ['session-a', { savedAt: NOW - 40 * DAY, todos }],
+    ['session-old', { savedAt: NOW - 31 * DAY, todos }],
+    ['session-recent', { savedAt: NOW - 29 * DAY, todos }],
+    ['session-unknown', unknown],
+  ])
+  await start($, on, { stored })
+
+  expect([...stored.keys()].sort()).toEqual(['session-a', 'session-recent', 'session-unknown'])
+  expect(stored.get('session-a')).toEqual({ savedAt: NOW, todos })
+  expect(stored.get('session-unknown')).toEqual(unknown)
+})
+
+test('a longer cleanupPeriodDays keeps older lists', async ($, on) => {
+  const stored = new Map<string, unknown>([['session-old', { savedAt: NOW - 31 * DAY, todos: [{ text: 'A', kind: 'task', isDone: false }] }]])
+  await start($, on, { stored, settings: { cleanupPeriodDays: 90 } })
+
+  expect(stored.has('session-old')).toBe(true)
 })
