@@ -5,7 +5,7 @@ import type { Todo, TodoKind } from '../types'
 
 const TOOL = 'mcp__pinned-todos__pin_todos'
 
-const items = atom({ plugin: 'pinned-todos', key: 'items' } as const, [], {
+const items = atom({ plugin: 'pinned-todos', key: 'items' } as const, null, {
   shape: 'items-1',
 })
 
@@ -121,10 +121,20 @@ function describe(list: Todo[]): string {
   return [`pinned ${list.length} item(s), ${doneCount} checked`, ...list.map(line)].join('\n')
 }
 
+// `$.state` starts over when `/resume` puts another session under the running process, and no event
+// a plugin is handed follows the swap: a list this session has not written yet is read from its saved copy.
+async function current($: Pick<CoreEngineInterface, 'state' | 'store' | 'session'>): Promise<Todo[]> {
+  return (await read($, items)) ?? parseSaved(await $.store.get(await $.session.id()))?.todos ?? []
+}
+
 // Every writer goes through here: a write made from a press handler does not reach this plugin's own
 // `state.set` hook, so the saved copy cannot be tied to the state itself.
 async function change($: Pick<CoreEngineInterface, 'state' | 'store' | 'session' | 'clock'>, edit: (latest: Todo[]) => Todo[]): Promise<Todo[]> {
-  const list = await update($, items, edit)
+  const left = await current($)
+  const list =
+    (await update($, items, (latest) => {
+      return edit(latest ?? left)
+    })) ?? []
   const sessionId = await $.session.id()
 
   await (list.length === 0 ? $.store.delete(sessionId) : $.store.set(sessionId, { savedAt: await $.clock.now(), todos: list }))
@@ -203,11 +213,8 @@ export const register: Register = (on) => {
     const saved = parseSaved(await $.store.get(sessionId))
 
     if (saved !== undefined) {
-      // A hot reload also runs session.start; the live list wins over the saved one.
-      // Writing it back renews savedAt, so a list that is opened often never expires.
-      await change($, (latest) => {
-        return latest.length === 0 ? saved.todos : latest
-      })
+      // Renewing savedAt keeps a list that is opened often from expiring.
+      await $.store.set(sessionId, { ...saved, savedAt: await $.clock.now() })
     }
 
     await forgetExpired($, sessionId)
@@ -226,16 +233,16 @@ export const register: Register = (on) => {
       return { deny: 'pin_todos: only the main conversation keeps the list; a subagent may not change it.' }
     }
 
-    const current = await read($, items)
+    const before = await current($)
 
     if (action === 'list') {
-      return { result: describe(current) }
+      return { result: describe(before) }
     }
 
     try {
       // Validated once here so a refused call writes nothing, and again inside
       // the updater because a retry may run it against a list another call changed.
-      apply(current, action, e)
+      apply(before, action, e)
       const list = await change($, (latest) => {
         return apply(latest, action, e)
       })
@@ -261,7 +268,7 @@ export const register: Register = (on) => {
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
-    const list = await read($, items)
+    const list = await current($)
 
     if (e.props.hasSurvey || list.length === 0) {
       return next(e)

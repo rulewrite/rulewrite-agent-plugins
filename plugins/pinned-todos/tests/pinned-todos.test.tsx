@@ -35,7 +35,7 @@ async function start(
     sessionId = 'session-a',
     stored = new Map(),
     settings = {},
-  }: { sessionId?: string; stored?: Map<string, unknown>; settings?: Record<string, unknown> } = {},
+  }: { sessionId?: string | (() => string); stored?: Map<string, unknown>; settings?: Record<string, unknown> } = {},
 ) {
   on('clock.now', () => {
     return { value: NOW }
@@ -60,7 +60,7 @@ async function start(
     return { value: undefined }
   })
   on('session.id', () => {
-    return { value: sessionId }
+    return { value: typeof sessionId === 'string' ? sessionId : sessionId() }
   })
   on('tool.register', () => {
     return { value: { tool: TOOL } }
@@ -267,6 +267,42 @@ test('another session starts with an empty list', async ($, on) => {
 
   const listed = await $.tool.call({ tool: TOOL, action: 'list' })
   expect(listed.result).toBe('pinned 0 item(s), 0 checked')
+})
+
+test('a session resumed inside a running process shows the list it left and keeps it through a change', async ($, on) => {
+  let sessionId = 'session-c'
+  const stored = new Map<string, unknown>([
+    [
+      'session-a',
+      {
+        savedAt: NOW - DAY,
+        todos: [
+          { text: '브랜치 이름은?', kind: 'decision', isDone: false },
+          { text: '마켓플레이스 항목 수정', kind: 'task', isDone: true },
+        ],
+      },
+    ],
+  ])
+  await start($, on, {
+    sessionId: () => {
+      return sessionId
+    },
+    stored,
+  })
+
+  sessionId = 'session-a'
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect((await ui.find({ type: 'Text', text: /TODO/ }))?.text).toBe('📌 TODO 1/2 남음')
+
+  await ui.press({ key: 'item-1' })
+  await ui.unmount()
+  expect(stored.get('session-a')).toEqual({
+    savedAt: NOW,
+    todos: [
+      { text: '브랜치 이름은?', kind: 'decision', isDone: true },
+      { text: '마켓플레이스 항목 수정', kind: 'task', isDone: true },
+    ],
+  })
 })
 
 test('a saved list in a shape this code does not know is ignored', async ($, on) => {
